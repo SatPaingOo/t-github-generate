@@ -130,9 +130,25 @@ jobs:
           mkdir -p "$OUT"
           if [ "$PLATFORM" = "android" ]; then
             cp _tmp/template/android/app/build/outputs/apk/release/*.apk "$OUT/app.apk"
+            FILE="app.apk"
           else
             cp _tmp/template/dist/*.exe "$OUT/setup.exe"
+            FILE="setup.exe"
           fi
+          # info.json — app name & branding the user entered, next to the artifact
+          cat > "$OUT/info.json" << EOF
+          {
+            "appName": "${{ github.event.inputs.appName }}",
+            "slug": "${{ github.event.inputs.slug }}",
+            "platform": "$PLATFORM",
+            "theme": "${{ github.event.inputs.theme }}",
+            "primaryColor": "${{ github.event.inputs.primaryColor }}",
+            "secondaryColor": "${{ github.event.inputs.secondaryColor }}",
+            "version": "${{ github.event.inputs.version }}",
+            "file": "$FILE",
+            "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
           ls -la "$OUT"
 
       - name: Commit + push artifact
