@@ -30,7 +30,8 @@ export function toSlug(appName: string): string {
 }
 
 export function sanitizePackageName(pkg: string | undefined, slug: string): string {
-  const candidate = (pkg || `com.tgen.${slug}`).trim();
+  const fallback = `com.tgen.${slug.replace(/[^a-z0-9]/g, '') || 'app'}`;
+  const candidate = (pkg || fallback).trim();
   if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/.test(candidate)) {
     throw new ValidationError('Package name must be lowercase dot-separated (e.g. com.example.myapp).');
   }
