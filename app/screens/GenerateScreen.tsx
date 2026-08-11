@@ -304,13 +304,22 @@ export function GenerateScreen() {
               {result ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                   <p className="font-semibold">🎉 {result.message}</p>
+                  {result.downloadUrl ? (
+                    <a
+                      href={result.downloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-flex items-center gap-1 font-semibold text-emerald-700 underline underline-offset-2">
+                      ⬇ Download {platform === 'windows' ? 'setup.exe' : 'app.apk'} (appears when ready) ↗
+                    </a>
+                  ) : null}
                   {result.repoUrl ? (
                     <a
                       href={result.repoUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-1 inline-flex items-center gap-1 font-medium text-emerald-700 underline underline-offset-2">
-                      {result.repoUrl} ↗
+                      className="mt-1 block font-medium text-emerald-600 underline underline-offset-2">
+                      View folder {result.repoUrl} ↗
                     </a>
                   ) : null}
                 </div>

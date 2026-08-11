@@ -13,139 +13,81 @@ export function getOctokit(): Octokit {
 
 export const GITHUB_OWNER = process.env.GITHUB_OWNER ?? 'SatPaingOo';
 
-/** Template repo per platform. */
-export const TEMPLATE_REPOS: Record<string, string> = {
-  android: 't-github-gen-mobile-app',
-  ios: 't-github-gen-mobile-app',
-  windows: 't-github-gen-electron-app',
-  macos: 't-github-gen-electron-app',
-};
+/** The repo that hosts the website AND the exported artifacts. */
+export const WEBSITE_REPO = 't-github-generate';
+export const EXPORT_WORKFLOW = 'build-export.yml';
+
+export function exportDirUrl(platform: string, slug: string): string {
+  return `https://github.com/${GITHUB_OWNER}/${WEBSITE_REPO}/tree/main/public/exports/${platform}/${slug}`;
+}
+
+export function exportRawUrl(platform: string, slug: string, filename: string): string {
+  return `https://raw.githubusercontent.com/${GITHUB_OWNER}/${WEBSITE_REPO}/main/public/exports/${platform}/${slug}/${filename}`;
+}
 
 /**
- * Create a new repo from a template repo (POST /repos/{owner}/{template}/generate).
- * Returns the new repo's full_name (e.g. "SatPaingOo/app-my-app-abc1").
+ * Trigger the build-export workflow on the website repo.
+ * The workflow clones the template, builds the app and commits the artifact
+ * into public/exports/{platform}/{slug}/ — no separate per-app repo.
  */
-export async function createRepoFromTemplate(
-  templateRepo: string,
-  newRepoName: string,
-): Promise<string> {
-  const gh = getOctokit();
-  const res = await gh.repos.createUsingTemplate({
-    owner: GITHUB_OWNER,
-    template_owner: GITHUB_OWNER,
-    template_repo: templateRepo,
-    name: newRepoName,
-    private: false, // public → free Actions minutes for the generated build
-    include_all_branches: false,
-  });
-  return res.data.full_name ?? `${GITHUB_OWNER}/${newRepoName}`;
-}
-
-/** Wait until the new repo's main branch exists (template copy is async). */
-async function waitForBranch(owner: string, repo: string, timeoutMs = 60_000): Promise<void> {
-  const gh = getOctokit();
-  const start = Date.now();
-  for (;;) {
-    try {
-      const res = await gh.git.getRef({ owner, repo, ref: 'heads/main' });
-      if (res.status === 200) return;
-    } catch {
-      // not ready yet
-    }
-    if (Date.now() - start > timeoutMs) throw new Error('Timed out waiting for the new repo to be ready.');
-    await new Promise(r => setTimeout(r, 2000));
-  }
-}
-
-/** Build the app.config.json pushed into the generated repo. */
-export function buildAppConfig(input: {
+export async function triggerExportBuild(input: {
+  platform: string;
   appName: string;
   slug: string;
   theme: string;
   primaryColor: string;
   supportEmail: string;
-  platform: string;
   packageName: string;
   version: string;
-  jsName: string;
-}): Record<string, unknown> {
-  return {
-    schemaVersion: 1,
-    appName: input.appName,
-    slug: input.slug,
-    theme: input.theme,
-    primaryColor: input.primaryColor,
-    logoUrl: 'assets/logo.png',
-    supportEmail: input.supportEmail,
-    platforms: [input.platform],
-    packageName: input.packageName,
-    version: input.version,
-    // internal (used by RN generate script for the component/Gradle project name)
-    _jsName: input.jsName,
-  };
-}
-
-/** Push app.config.json (+ logo) to the generated repo using the git tree API. */
-export async function pushConfigAndLogo(params: {
-  owner: string;
-  repo: string;
-  appConfig: Record<string, unknown>;
-  logoBytes: Buffer | null;
 }): Promise<void> {
   const gh = getOctokit();
-  const { owner, repo, appConfig, logoBytes } = params;
+  await gh.rest.actions.createWorkflowDispatch({
+    owner: GITHUB_OWNER,
+    repo: WEBSITE_REPO,
+    workflow_id: EXPORT_WORKFLOW,
+    ref: 'main',
+    inputs: {
+      platform: input.platform,
+      appName: input.appName,
+      slug: input.slug,
+      theme: input.theme,
+      primaryColor: input.primaryColor,
+      supportEmail: input.supportEmail,
+      packageName: input.packageName,
+      version: input.version,
+    },
+  });
+}
 
-  // resolve the current head commit
+/** Push the uploaded logo into the repo so the export workflow can pick it up. */
+export async function uploadExportLogo(slug: string, logoBytes: Buffer): Promise<void> {
+  const gh = getOctokit();
+  const { owner, repo } = { owner: GITHUB_OWNER, repo: WEBSITE_REPO };
+
   const ref = await gh.git.getRef({ owner, repo, ref: 'heads/main' });
   const baseCommit = ref.data.object.sha;
 
-  const treeItems: { path: string; mode: '100644'; type: 'blob'; content?: string; sha?: string }[] = [
-    {
-      path: 'app.config.json',
-      mode: '100644',
-      type: 'blob',
-      content: JSON.stringify(appConfig, null, 2) + '\n',
-    },
-  ];
-
-  if (logoBytes) {
-    // create a blob for the logo bytes
-    const blob = await gh.git.createBlob({ owner, repo, content: logoBytes.toString('base64'), encoding: 'base64' });
-    treeItems.push({
-      path: 'assets/logo.png',
-      mode: '100644',
-      type: 'blob',
-      sha: blob.data.sha,
-    });
-  }
+  const blob = await gh.git.createBlob({
+    owner,
+    repo,
+    content: logoBytes.toString('base64'),
+    encoding: 'base64',
+  });
 
   const tree = await gh.git.createTree({
     owner,
     repo,
     base_tree: baseCommit,
-    tree: treeItems,
+    tree: [{ path: `public/inputs/${slug}/logo.png`, mode: '100644', type: 'blob', sha: blob.data.sha }],
   });
 
   const commit = await gh.git.createCommit({
     owner,
     repo,
-    message: 'chore: apply app config from TGen website [skip ci]',
+    message: 'chore: stage logo for export [skip ci]',
     tree: tree.data.sha,
     parents: [baseCommit],
   });
 
   await gh.git.updateRef({ owner, repo, ref: 'heads/main', sha: commit.data.sha });
-}
-
-export async function createGeneratedRepo(input: {
-  repoName: string;
-  templateRepo: string;
-  appConfig: Record<string, unknown>;
-  logoBytes: Buffer | null;
-}): Promise<{ fullName: string; owner: string; repo: string }> {
-  const fullName = await createRepoFromTemplate(input.templateRepo, input.repoName);
-  const [owner, repo] = fullName.split('/');
-  await waitForBranch(owner, repo);
-  await pushConfigAndLogo({ owner, repo, appConfig: input.appConfig, logoBytes: input.logoBytes });
-  return { fullName, owner, repo };
 }

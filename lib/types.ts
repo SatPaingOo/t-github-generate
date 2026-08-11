@@ -18,6 +18,7 @@ export interface GenerateRequest {
 export interface GenerateResponse {
   ok: boolean;
   repoUrl?: string;
+  downloadUrl?: string;
   repoName?: string;
   message: string;
 }

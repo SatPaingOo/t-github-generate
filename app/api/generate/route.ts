@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRequest, ValidationError } from '@/lib/sanitize';
 import { consumeCode, appendGeneration, idGen, listCodes, saveCodes } from '@/lib/store';
-import { buildAppConfig, createGeneratedRepo, TEMPLATE_REPOS } from '@/lib/github';
+import { exportDirUrl, exportRawUrl, triggerExportBuild, uploadExportLogo } from '@/lib/github';
 import type { GenerateRequest } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -22,37 +22,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. create the new repo from the platform template
-    const templateRepo = TEMPLATE_REPOS[v.platform];
-    if (!templateRepo) {
-      return NextResponse.json(
-        { ok: false, message: `No template for platform "${v.platform}".` },
-        { status: 400 },
-      );
-    }
-
-    const repoName = `app-${v.slug}-${Math.random().toString(36).slice(2, 6)}`;
-    const appConfig = buildAppConfig({
-      appName: v.appName,
-      slug: v.slug,
-      theme: v.theme,
-      primaryColor: v.primaryColor,
-      supportEmail: v.supportEmail,
-      platform: v.platform,
-      packageName: v.packageName,
-      version: v.version,
-      jsName: v.jsName,
-    });
-
-    let repoFullName: string;
     try {
-      const created = await createGeneratedRepo({
-        repoName,
-        templateRepo,
-        appConfig,
-        logoBytes: v.logoBytes,
+      // 3. optional: stage the logo so the export workflow can use it
+      if (v.logoBytes) {
+        await uploadExportLogo(v.slug, v.logoBytes);
+      }
+
+      // 4. trigger the build-export workflow on this repo
+      await triggerExportBuild({
+        platform: v.platform,
+        appName: v.appName,
+        slug: v.slug,
+        theme: v.theme,
+        primaryColor: v.primaryColor,
+        supportEmail: v.supportEmail,
+        packageName: v.packageName,
+        version: v.version,
       });
-      repoFullName = created.fullName;
     } catch (err) {
       // refund the code so the user can retry
       const codes = listCodes();
@@ -68,7 +54,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. log the generation (notifier workflow emails the user when the build is done)
+    // 5. log the generation (status = building; artifact lands in public/exports)
+    const filename = v.platform === 'windows' ? 'setup.exe' : 'app.apk';
     appendGeneration({
       id: idGen(),
       createdAt: new Date().toISOString(),
@@ -77,18 +64,18 @@ export async function POST(req: NextRequest) {
       slug: v.slug,
       platform: v.platform,
       code: v.code,
-      repoUrl: `https://github.com/${repoFullName}`,
-      repoName: repoFullName,
+      repoUrl: exportDirUrl(v.platform, v.slug),
+      repoName: `public/exports/${v.platform}/${v.slug}`,
       status: 'building',
       updatedAt: new Date().toISOString(),
     });
 
     return NextResponse.json({
       ok: true,
-      repoUrl: `https://github.com/${repoFullName}`,
-      repoName: repoFullName,
+      repoUrl: exportDirUrl(v.platform, v.slug),
+      downloadUrl: exportRawUrl(v.platform, v.slug, filename),
       message:
-        'Build started! We will email you the download link when it is ready (10–20 min).',
+        'Build started! Your app file will appear in ~10-15 min — check the link below.',
     });
   } catch (err) {
     if (err instanceof ValidationError) {

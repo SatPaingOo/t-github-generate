@@ -1,0 +1,148 @@
+name: build-export
+
+# Triggered by the TGen website (POST /api/generate → workflow_dispatch).
+# Builds a branded app from a template repo and commits the artifact into
+# this repo at public/exports/{platform}/{slug}/ so it is directly
+# downloadable — no separate per-app repo is created.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        options: [android, windows]
+        required: true
+      appName:
+        type: string
+        required: true
+      slug:
+        type: string
+        required: true
+      theme:
+        type: choice
+        options: [light, dark, system]
+        default: light
+      primaryColor:
+        type: string
+        default: "#3B82F6"
+      supportEmail:
+        type: string
+        default: ""
+      packageName:
+        type: string
+        default: ""
+      version:
+        type: string
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+# Serialize all exports — each run commits large binaries to the same repo
+concurrency:
+  group: build-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ${{ github.event.inputs.platform == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Clone template repo
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.platform }}" = "android" ]; then
+            git clone --depth 1 https://github.com/SatPaingOo/t-github-gen-mobile-app.git _tmp/template
+          else
+            git clone --depth 1 https://github.com/SatPaingOo/t-github-gen-electron-app.git _tmp/template
+          fi
+
+      - name: Write app.config.json
+        shell: bash
+        run: |
+          cat > _tmp/template/app.config.json << EOF
+          {
+            "schemaVersion": 1,
+            "appName": "${{ github.event.inputs.appName }}",
+            "slug": "${{ github.event.inputs.slug }}",
+            "theme": "${{ github.event.inputs.theme }}",
+            "primaryColor": "${{ github.event.inputs.primaryColor }}",
+            "logoUrl": "assets/logo.png",
+            "supportEmail": "${{ github.event.inputs.supportEmail }}",
+            "platforms": ["${{ github.event.inputs.platform }}"],
+            "packageName": "${{ github.event.inputs.packageName }}",
+            "version": "${{ github.event.inputs.version }}"
+          }
+          EOF
+
+      - name: Apply uploaded logo (optional)
+        shell: bash
+        run: |
+          SLUG="${{ github.event.inputs.slug }}"
+          if [ -f "public/inputs/$SLUG/logo.png" ]; then
+            mkdir -p _tmp/template/assets
+            cp "public/inputs/$SLUG/logo.png" "_tmp/template/assets/logo.png"
+          fi
+
+      - name: Install deps + generate branding
+        shell: bash
+        run: |
+          cd _tmp/template
+          npm ci
+          node scripts/generate.mjs
+
+      - name: Build APK (android)
+        if: github.event.inputs.platform == 'android'
+        shell: bash
+        run: |
+          cd _tmp/template/android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Build installer (windows)
+        if: github.event.inputs.platform == 'windows'
+        shell: bash
+        run: |
+          cd _tmp/template
+          npm run dist:win
+
+      - name: Copy artifact into public/exports
+        shell: bash
+        run: |
+          PLATFORM="${{ github.event.inputs.platform }}"
+          OUT="public/exports/$PLATFORM/${{ github.event.inputs.slug }}"
+          mkdir -p "$OUT"
+          if [ "$PLATFORM" = "android" ]; then
+            cp _tmp/template/android/app/build/outputs/apk/release/*.apk "$OUT/app.apk"
+          else
+            cp _tmp/template/dist/*.exe "$OUT/setup.exe"
+          fi
+          ls -la "$OUT"
+
+      - name: Commit + push artifact
+        shell: bash
+        run: |
+          rm -rf "public/inputs/${{ github.event.inputs.slug }}" _tmp
+          git config user.name "tgen-bot"
+          git config user.email "tgen-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+          else
+            # [skip ci] prevents this push from re-triggering any workflow
+            git commit -m "chore: export ${{ github.event.inputs.platform }}/${{ github.event.inputs.slug }} [skip ci]"
+            git pull --rebase origin main --autostash
+            git push
+          fi
