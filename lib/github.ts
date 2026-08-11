@@ -36,6 +36,7 @@ export async function triggerExportBuild(input: {
   slug: string;
   theme: string;
   primaryColor: string;
+  secondaryColor: string;
   supportEmail: string;
   packageName: string;
   version: string;
@@ -52,6 +53,7 @@ export async function triggerExportBuild(input: {
       slug: input.slug,
       theme: input.theme,
       primaryColor: input.primaryColor,
+      secondaryColor: input.secondaryColor,
       supportEmail: input.supportEmail,
       packageName: input.packageName,
       version: input.version,

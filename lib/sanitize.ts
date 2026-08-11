@@ -38,9 +38,9 @@ export function sanitizePackageName(pkg: string | undefined, slug: string): stri
   return candidate.toLowerCase();
 }
 
-export function sanitizeColor(color: string): string {
+export function sanitizeColor(color: string, label = 'Color'): string {
   if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color)) {
-    throw new ValidationError('Color must be #RGB or #RRGGBB.');
+    throw new ValidationError(`${label} must be #RGB or #RRGGBB.`);
   }
   return color.length === 4
     ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`.toLowerCase()
@@ -92,6 +92,7 @@ export function validateRequest(raw: GenerateRequest) {
     jsName: toJsName(appName),
     theme: sanitizeTheme(raw.theme),
     primaryColor: sanitizeColor(raw.primaryColor),
+    secondaryColor: sanitizeColor(raw.secondaryColor || '#64748B', 'Secondary color'),
     supportEmail: sanitizeEmail(raw.supportEmail),
     platform: sanitizePlatform(raw.platform),
     code: raw.code.trim(),

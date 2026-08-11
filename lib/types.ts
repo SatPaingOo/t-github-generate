@@ -7,6 +7,7 @@ export interface GenerateRequest {
   appName: string;
   theme: ThemeMode;
   primaryColor: string;
+  secondaryColor?: string;
   logoBase64?: string; // data URL or raw base64 (PNG/JPEG) — optional
   supportEmail: string;
   platform: Platform;

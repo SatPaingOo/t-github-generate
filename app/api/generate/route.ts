@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
         slug: v.slug,
         theme: v.theme,
         primaryColor: v.primaryColor,
+        secondaryColor: v.secondaryColor,
         supportEmail: v.supportEmail,
         packageName: v.packageName,
         version: v.version,

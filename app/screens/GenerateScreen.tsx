@@ -13,6 +13,7 @@ export function GenerateScreen() {
   const [appName, setAppName] = useState('');
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [primaryColor, setPrimaryColor] = useState('#6366F1');
+  const [secondaryColor, setSecondaryColor] = useState('#64748B');
   const [supportEmail, setSupportEmail] = useState('');
   const [platform, setPlatform] = useState<Platform>('android');
   const [code, setCode] = useState('');
@@ -53,6 +54,7 @@ export function GenerateScreen() {
           appName,
           theme,
           primaryColor,
+          secondaryColor,
           supportEmail,
           platform,
           code,
@@ -180,21 +182,45 @@ export function GenerateScreen() {
                 </div>
               </Field>
 
-              {/* Color */}
-              <Field label="Brand color">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={e => setPrimaryColor(e.target.value)}
-                    className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
-                  />
-                  <TextInput
-                    value={primaryColor}
-                    onChange={e => setPrimaryColor(e.target.value)}
-                    maxLength={7}
-                    className="w-28"
-                  />
+              {/* Brand colors */}
+              <Field label="Brand colors" hint="Primary = buttons & icons · Secondary = header bar & badges.">
+                <div className="space-y-3">
+                  {/* Primary */}
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-slate-500">Primary</p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={e => setPrimaryColor(e.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                      />
+                      <TextInput
+                        value={primaryColor}
+                        onChange={e => setPrimaryColor(e.target.value)}
+                        maxLength={7}
+                        className="w-28"
+                      />
+                    </div>
+                  </div>
+                  {/* Secondary */}
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-slate-500">Secondary</p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={secondaryColor}
+                        onChange={e => setSecondaryColor(e.target.value)}
+                        className="h-10 w-14 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                      />
+                      <TextInput
+                        value={secondaryColor}
+                        onChange={e => setSecondaryColor(e.target.value)}
+                        maxLength={7}
+                        className="w-28"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {PRESET_COLORS.map(c => (
@@ -347,6 +373,7 @@ export function GenerateScreen() {
               <AppPreview
                 appName={appName}
                 color={primaryColor}
+                secondaryColor={secondaryColor}
                 theme={theme}
                 platform={platform}
                 logo={logoPreview}

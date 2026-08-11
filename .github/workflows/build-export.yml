@@ -25,6 +25,9 @@ on:
       primaryColor:
         type: string
         default: "#3B82F6"
+      secondaryColor:
+        type: string
+        default: "#64748B"
       supportEmail:
         type: string
         default: ""
@@ -79,6 +82,7 @@ jobs:
             "slug": "${{ github.event.inputs.slug }}",
             "theme": "${{ github.event.inputs.theme }}",
             "primaryColor": "${{ github.event.inputs.primaryColor }}",
+            "secondaryColor": "${{ github.event.inputs.secondaryColor }}",
             "logoUrl": "assets/logo.png",
             "supportEmail": "${{ github.event.inputs.supportEmail }}",
             "platforms": ["${{ github.event.inputs.platform }}"],

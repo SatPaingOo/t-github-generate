@@ -11,14 +11,16 @@ import type { Platform } from '@/lib/types';
 interface Props {
   appName: string;
   color: string;
+  secondaryColor?: string;
   theme: 'light' | 'dark' | 'system';
   platform: Platform;
   logo?: string | null;
 }
 
-export function AppPreview({ appName, color, theme, platform, logo }: Props) {
+export function AppPreview({ appName, color, secondaryColor, theme, platform, logo }: Props) {
   const isDesktop = platform === 'windows' || platform === 'macos';
   const dark = theme === 'dark';
+  const secondary = secondaryColor || color;
 
   const bg = dark ? '#0F172A' : '#F1F5F9';
   const surface = dark ? '#1E293B' : '#FFFFFF';
@@ -46,10 +48,11 @@ export function AppPreview({ appName, color, theme, platform, logo }: Props) {
               {appName || 'My App'}
             </span>
           </div>
-          <div className="p-4">
+          <div className="p-5">
             <DesktopBody
               appName={appName}
               color={color}
+              secondary={secondary}
               logo={logo}
               initial={initial}
               dark={dark}
@@ -68,6 +71,7 @@ export function AppPreview({ appName, color, theme, platform, logo }: Props) {
             <PhoneBody
               appName={appName}
               color={color}
+              secondary={secondary}
               logo={logo}
               initial={initial}
               dark={dark}
@@ -91,9 +95,7 @@ function BrandStrip({ color }: { color: string }) {
       <span className="text-[10px] font-bold text-white">Generated with TGen</span>
     </div>
   );
-}
-
-function AppIcon({ color, logo, initial }: { color: string; logo?: string | null; initial: string }) {
+}function AppIcon({ color, logo, initial }: { color: string; logo?: string | null; initial: string }) {
   return (
     <div
       className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl text-xl font-bold text-white"
@@ -111,6 +113,7 @@ function AppIcon({ color, logo, initial }: { color: string; logo?: string | null
 function PhoneBody(props: {
   appName: string;
   color: string;
+  secondary: string;
   logo?: string | null;
   initial: string;
   dark: boolean;
@@ -120,10 +123,10 @@ function PhoneBody(props: {
   muted: string;
   border: string;
 }) {
-  const { appName, color, logo, initial, bg, surface, text, muted, border } = props;
+  const { appName, color, secondary, logo, initial, bg, surface, text, muted, border } = props;
   return (
     <div style={{ background: bg, minHeight: 420 }}>
-      <BrandStrip color={color} />
+      <BrandStrip color={secondary} />
       <div className="flex flex-col items-center px-4 pt-6 pb-8">
         <AppIcon color={color} logo={logo} initial={initial} />
         <p className="mt-2.5 text-base font-bold" style={{ color: text }}>
@@ -176,6 +179,7 @@ function PhoneBody(props: {
 function DesktopBody(props: {
   appName: string;
   color: string;
+  secondary: string;
   logo?: string | null;
   initial: string;
   dark: boolean;
@@ -184,48 +188,57 @@ function DesktopBody(props: {
   text: string;
   muted: string;
 }) {
-  const { appName, color, logo, initial, bg, surface, text, muted } = props;
+  const { appName, color, secondary, logo, initial, bg, surface, text, muted } = props;
   return (
-    <div style={{ background: bg, borderRadius: 12, padding: 14 }}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+    <div style={{ background: bg, borderRadius: 14, padding: 16 }}>
+      {/* header: secondary bar + title */}
+      <div
+        className="flex items-center justify-between rounded-xl px-4 py-3"
+        style={{ background: secondary }}>
+        <div className="flex items-center gap-3">
           <AppIcon color={color} logo={logo} initial={initial} />
           <div>
-            <p className="text-sm font-bold" style={{ color: text }}>
-              {appName || 'My App'}
-            </p>
-            <p className="text-[10px]" style={{ color: muted }}>
-              Windows app
-            </p>
+            <p className="text-base font-bold text-white">{appName || 'My App'}</p>
+            <p className="text-[11px] text-white/80">Windows app</p>
           </div>
         </div>
-        <span
-          className="rounded-full px-2.5 py-1 text-[10px] font-semibold"
-          style={{ background: `${color}22`, color: color }}>
+        <span className="rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold text-white">
           Windows · exe
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {/* main: 2-column notes grid, larger */}
+      <div className="mt-3 grid grid-cols-2 gap-3">
         {[
-          { t: 'Grocery list', s: 'milk, eggs, bread', c: '#F59E0B' },
-          { t: 'Meeting notes', s: 'Q3 planning…', c: '#10B981' },
-          { t: 'App ideas', s: '1. TGen, 2. …', c: '#6366F1' },
-          { t: 'Reading list', s: 'Clean Code…', c: '#EC4899' },
+          { t: 'Grocery list', s: 'milk, eggs, bread, coffee', c: '#F59E0B' },
+          { t: 'Meeting notes', s: 'Q3 planning · decide budget', c: '#10B981' },
+          { t: 'App ideas', s: '1. TGen · 2. Notes app', c: '#6366F1' },
+          { t: 'Reading list', s: 'Clean Code · Refactoring', c: '#EC4899' },
+          { t: 'Workout plan', s: 'Mon: legs · Tue: arms', c: '#06B6D4' },
+          { t: 'Travel todo', s: 'passport, visa, booking', c: '#F59E0B' },
         ].map((note, i) => (
           <div
             key={i}
-            className="rounded-xl p-3"
+            className="rounded-xl p-3.5"
             style={{ background: surface, border: `1px solid ${'#E2E8F0'}` }}>
-            <div className="mb-1.5 h-1 w-6 rounded-full" style={{ background: note.c }} />
-            <p className="text-[11px] font-semibold" style={{ color: text }}>
+            <div className="mb-2 h-1.5 w-8 rounded-full" style={{ background: note.c }} />
+            <p className="text-[13px] font-semibold" style={{ color: text }}>
               {note.t}
             </p>
-            <p className="text-[10px]" style={{ color: muted }}>
+            <p className="mt-0.5 text-[11px]" style={{ color: muted }}>
               {note.s}
             </p>
           </div>
         ))}
+      </div>
+
+      {/* bottom nav with secondary accent */}
+      <div
+        className="mt-3 flex items-center justify-center gap-6 rounded-xl px-4 py-2.5"
+        style={{ background: surface, border: `1px solid ${'#E2E8F0'}` }}>
+        <span className="text-sm">🗒</span>
+        <span className="text-sm">✅</span>
+        <span className="text-sm">⚙</span>
       </div>
     </div>
   );
