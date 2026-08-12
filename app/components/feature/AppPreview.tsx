@@ -76,6 +76,20 @@ export function AppPreview({ appName, color, secondaryColor, theme, platform, lo
       <p className="mt-3 text-xs font-medium text-slate-400">
         Live preview — matches the generated {isDesktop ? 'Windows' : 'Android'} app
       </p>
+
+      {/* color legend — shows what primary/secondary affect */}
+      <div className="mt-3 w-full max-w-[420px] rounded-xl border border-slate-200 bg-white p-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 shrink-0 rounded-full ring-1 ring-slate-300" style={{ background: primary }} />
+          <span className="font-semibold text-slate-700">Primary</span>
+          <span className="text-slate-400">buttons · active tab · progress</span>
+        </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="h-3 w-3 shrink-0 rounded-full ring-1 ring-slate-300" style={{ background: secondary }} />
+          <span className="font-semibold text-slate-700">Secondary</span>
+          <span className="text-slate-400">header bar · badges</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -387,7 +387,7 @@ export function GenerateScreen() {
 
           {/* PREVIEW */}
           <div className="lg:sticky lg:top-20">
-            <div className="mx-auto max-w-[340px]">
+            <div className={platform === 'windows' || platform === 'macos' ? 'mx-auto max-w-2xl' : 'mx-auto max-w-[340px]'}>
               <AppPreview
                 appName={appName}
                 color={primaryColor}
