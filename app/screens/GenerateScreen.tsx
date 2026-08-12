@@ -86,6 +86,11 @@ export function GenerateScreen() {
               <p className="text-[10px] text-slate-400">App Generator</p>
             </div>
           </div>
+          <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800">
+            <a href="/about" className="flex items-center gap-1.5">
+              ℹ️ About
+            </a>
+          </div>
           <a
             href="https://github.com/SatPaingOo/t-github-generate"
             target="_blank"
@@ -391,7 +396,7 @@ export function GenerateScreen() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-center sm:flex-row sm:text-left">
           <p className="text-xs text-slate-400">
-            TGen — demo app generator. Built with Next.js + GitHub Actions.
+            © 2026 TGen — demo app generator. Built with Next.js + GitHub Actions.
           </p>
           <div className="flex gap-4 text-xs text-slate-400">
             <a className="transition-colors hover:text-slate-700" href="https://github.com/SatPaingOo/t-github-gen-mobile-app" target="_blank" rel="noreferrer">
