@@ -14,12 +14,6 @@ export const PLATFORMS: {
   { value: 'macos', label: 'macOS', icon: '💻', desc: 'dmg', tag: 'Soon', available: false },
 ];
 
-export const THEMES: { value: 'light' | 'dark' | 'system'; label: string }[] = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
-];
-
 export const PRESET_COLORS = [
   '#6366F1',
   '#8B5CF6',

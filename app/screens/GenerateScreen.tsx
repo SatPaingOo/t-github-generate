@@ -1,8 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { PLATFORMS, THEMES, PRESET_COLORS, STEPS } from '@/configs/constants';
-import type { GenerateResponse, Platform, ThemeMode } from '@/lib/types';
+import { PLATFORMS, PRESET_COLORS, STEPS } from '@/configs/constants';
+import type { GenerateResponse, Platform } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Field, TextInput } from '@/components/ui/Field';
@@ -12,7 +12,6 @@ import { DefaultApps } from '@/components/feature/DefaultApps';
 
 export function GenerateScreen() {
   const [appName, setAppName] = useState('');
-  const [theme, setTheme] = useState<ThemeMode>('light');
   const [primaryColor, setPrimaryColor] = useState('#6366F1');
   const [secondaryColor, setSecondaryColor] = useState('#64748B');
   const [supportEmail, setSupportEmail] = useState('');
@@ -53,7 +52,6 @@ export function GenerateScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appName,
-          theme,
           primaryColor,
           secondaryColor,
           supportEmail,
@@ -179,25 +177,6 @@ export function GenerateScreen() {
                   placeholder="you@example.com"
                   required
                 />
-              </Field>
-
-              {/* Theme */}
-              <Field label="Theme">
-                <div className="flex gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
-                  {THEMES.map(t => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setTheme(t.value)}
-                      className={
-                        theme === t.value
-                          ? 'flex-1 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-200'
-                          : 'flex-1 rounded-lg px-3 py-1.5 text-sm text-slate-500 hover:text-slate-800'
-                      }>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
               </Field>
 
               {/* Brand colors */}
@@ -392,7 +371,7 @@ export function GenerateScreen() {
                 appName={appName}
                 color={primaryColor}
                 secondaryColor={secondaryColor}
-                theme={theme}
+                theme="light"
                 platform={platform}
                 logo={logoPreview}
               />
