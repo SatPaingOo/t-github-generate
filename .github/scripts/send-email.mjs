@@ -20,6 +20,22 @@ const { address: smtpIpv4 } = await dns.lookup(process.env.SMTP_HOST, {
   family: 4,
 });
 
+/** Mark the matching generation row as done (build + email succeeded). */
+function markDone(slug, platform) {
+  const p = 'data/generations.csv';
+  if (!fs.existsSync(p)) return;
+  const lines = fs.readFileSync(p, 'utf8').split('\n');
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(',');
+    if (cells[4] === slug && cells[5] === platform) {
+      cells[9] = 'done'; // status
+      cells[11] = new Date().toISOString(); // updatedAt
+      lines[i] = cells.join(',');
+    }
+  }
+  fs.writeFileSync(p, lines.join('\n'), 'utf8');
+}
+
 const slug = process.env.SLUG;
 const platform = process.env.PLATFORM;
 const appName = process.env.APP_NAME;
@@ -91,6 +107,7 @@ const htmlBody = `
 for (const [port, secure] of [[465, true], [587, false]]) {
   try {
     await sendOnPort(port, secure);
+    markDone(slug, platform);
     console.log(`[email] sent to ${email} via port ${port}`);
     process.exit(0);
   } catch (err) {
