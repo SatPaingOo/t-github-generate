@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const v = validateRequest(raw);
 
     // 2. consume the code (single-use) — this is the rate limiter
-    const code = consumeCode(v.code);
+    const code = await consumeCode(v.code);
     if (!code) {
       return NextResponse.json(
         { ok: false, message: 'Invalid or already-used code.' },
@@ -42,11 +42,11 @@ export async function POST(req: NextRequest) {
       });
     } catch (err) {
       // refund the code so the user can retry
-      const codes = listCodes();
+      const codes = await listCodes();
       const rec = codes.find(c => c.code === v.code);
       if (rec) {
         rec.used = Math.max(0, rec.used - 1);
-        saveCodes(codes);
+        await saveCodes(codes);
       }
       console.error('generate failed:', err);
       return NextResponse.json(
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       v.platform === 'windows'
         ? `${v.slug}-Setup-v${v.version}.exe`
         : `${v.slug}-v${v.version}.apk`;
-    appendGeneration({
+    await appendGeneration({
       id: idGen(),
       createdAt: new Date().toISOString(),
       email: v.supportEmail,

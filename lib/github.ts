@@ -17,6 +17,48 @@ export const GITHUB_OWNER = process.env.GITHUB_OWNER ?? 'SatPaingOo';
 export const WEBSITE_REPO = 't-github-generate';
 export const EXPORT_WORKFLOW = 'build-export.yml';
 
+/** Read a file from the website repo (data/*) via the Contents API. */
+export async function readRepoFile(
+  path: string,
+): Promise<{ content: string; sha: string } | null> {
+  const gh = getOctokit();
+  try {
+    const res = await gh.repos.getContent({
+      owner: GITHUB_OWNER,
+      repo: WEBSITE_REPO,
+      path,
+    });
+    if ('content' in res.data && typeof res.data.content === 'string') {
+      return {
+        content: Buffer.from(res.data.content, 'base64').toString('utf8'),
+        sha: res.data.sha,
+      };
+    }
+    return null;
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) return null;
+    throw err;
+  }
+}
+
+/** Write (create or update) a file in the website repo via the Contents API. */
+export async function writeRepoFile(
+  path: string,
+  content: string,
+  message: string,
+): Promise<void> {
+  const gh = getOctokit();
+  const existing = await readRepoFile(path);
+  await gh.repos.createOrUpdateFileContents({
+    owner: GITHUB_OWNER,
+    repo: WEBSITE_REPO,
+    path,
+    message,
+    content: Buffer.from(content, 'utf8').toString('base64'),
+    sha: existing?.sha,
+  });
+}
+
 export function exportDirUrl(platform: string, slug: string): string {
   return `https://github.com/${GITHUB_OWNER}/${WEBSITE_REPO}/tree/main/public/exports/${platform}/${slug}`;
 }
