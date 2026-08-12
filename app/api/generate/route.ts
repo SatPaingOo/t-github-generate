@@ -56,10 +56,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. log the generation (status = building; artifact lands in public/exports)
-    //    artifact filename uses the user's app (slug + version)
+    //    artifact filename uses the user's app (slug + version) — must match build-export.yml
     const filename =
       v.platform === 'windows'
-        ? `${v.slug}-Setup-${v.version}.exe`
+        ? `${v.slug}-Setup-v${v.version}.exe`
         : `${v.slug}-v${v.version}.apk`;
     appendGeneration({
       id: idGen(),
