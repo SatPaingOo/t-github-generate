@@ -237,7 +237,10 @@ function AboutContent({
 }) {
   const card = {
     background: surface,
-    border: `1px solid ${border}`,
+    // longhand so borderLeft can be overridden without React's shorthand conflict warning
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: border,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
