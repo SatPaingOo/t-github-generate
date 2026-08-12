@@ -56,7 +56,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. log the generation (status = building; artifact lands in public/exports)
-    const filename = v.platform === 'windows' ? 'setup.exe' : 'app.apk';
+    //    artifact filename uses the user's app (slug + version)
+    const filename =
+      v.platform === 'windows'
+        ? `${v.slug}-Setup-${v.version}.exe`
+        : `${v.slug}-v${v.version}.apk`;
     appendGeneration({
       id: idGen(),
       createdAt: new Date().toISOString(),

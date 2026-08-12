@@ -128,23 +128,26 @@ jobs:
           PLATFORM="${{ github.event.inputs.platform }}"
           OUT="public/exports/$PLATFORM/${{ github.event.inputs.slug }}"
           mkdir -p "$OUT"
+          # name the artifact after the user's app (slug + version), not a generic name
+          SLUG="${{ github.event.inputs.slug }}"
+          VERSION="${{ github.event.inputs.version }}"
           if [ "$PLATFORM" = "android" ]; then
-            cp _tmp/template/android/app/build/outputs/apk/release/*.apk "$OUT/app.apk"
-            FILE="app.apk"
+            cp _tmp/template/android/app/build/outputs/apk/release/*.apk "$OUT/${SLUG}-v${VERSION}.apk"
+            FILE="${SLUG}-v${VERSION}.apk"
           else
-            cp _tmp/template/dist/*.exe "$OUT/setup.exe"
-            FILE="setup.exe"
+            cp _tmp/template/dist/*.exe "$OUT/${SLUG}-Setup-v${VERSION}.exe"
+            FILE="${SLUG}-Setup-v${VERSION}.exe"
           fi
           # info.json — app name & branding the user entered, next to the artifact
           cat > "$OUT/info.json" << EOF
           {
             "appName": "${{ github.event.inputs.appName }}",
-            "slug": "${{ github.event.inputs.slug }}",
+            "slug": "$SLUG",
             "platform": "$PLATFORM",
             "theme": "${{ github.event.inputs.theme }}",
             "primaryColor": "${{ github.event.inputs.primaryColor }}",
             "secondaryColor": "${{ github.event.inputs.secondaryColor }}",
-            "version": "${{ github.event.inputs.version }}",
+            "version": "$VERSION",
             "file": "$FILE",
             "builtAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           }

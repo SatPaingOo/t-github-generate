@@ -340,7 +340,7 @@ export function GenerateScreen() {
                       target="_blank"
                       rel="noreferrer"
                       className="mt-1 inline-flex items-center gap-1 font-semibold text-emerald-700 underline underline-offset-2">
-                      ⬇ Download {platform === 'windows' ? 'setup.exe' : 'app.apk'} (appears when ready) ↗
+                      ⬇ Download your app (appears when ready) ↗
                     </a>
                   ) : null}
                   {result.repoUrl ? (

@@ -10,9 +10,10 @@ const DEFAULTS = [
     platform: 'android',
     label: 'Android',
     icon: '🤖',
-    file: 'app.apk',
+    appName: 'TGen App',
+    file: 'TGen-App-v1.0.0.apk',
     size: '56 MB',
-    href: '/defaults/android/app.apk',
+    href: '/defaults/android/TGen-App-v1.0.0.apk',
     desc: 'Notes + Todos app · installable APK (debug-signed)',
     badge: 'Ready',
   },
@@ -20,9 +21,10 @@ const DEFAULTS = [
     platform: 'windows',
     label: 'Windows',
     icon: '🪟',
-    file: 'setup.exe',
+    appName: 'TGen App',
+    file: 'TGen-App-Setup-v1.0.0.exe',
     size: '89 MB',
-    href: '/defaults/windows/setup.exe',
+    href: '/defaults/windows/TGen-App-Setup-v1.0.0.exe',
     desc: 'Notes + Todos app · NSIS installer',
     badge: 'Ready',
   },
@@ -57,7 +59,7 @@ export function DefaultApps() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-base font-bold text-slate-900">TGen App · {d.label}</p>
+                  <p className="text-base font-bold text-slate-900">{d.appName} · {d.label}</p>
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
                     {d.badge}
                   </span>
