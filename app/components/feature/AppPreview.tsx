@@ -15,6 +15,7 @@ import { useState } from 'react';
 
 import type { Platform } from '@/lib/types';
 import type { ThemeMode } from '@/lib/types';
+import type { CSSProperties } from 'react';
 
 interface Props {
   appName: string;
@@ -235,12 +236,21 @@ function AboutContent({
   text: string;
   muted: string;
 }) {
-  const card = {
+  const card: CSSProperties = {
     background: surface,
-    // longhand so borderLeft can be overridden without React's shorthand conflict warning
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: border,
+    // fully per-side longhand borders — avoids React shorthand/non-shorthand conflicts
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderLeftWidth: 1,
+    borderTopStyle: 'solid',
+    borderRightStyle: 'solid',
+    borderBottomStyle: 'solid',
+    borderLeftStyle: 'solid',
+    borderTopColor: border,
+    borderRightColor: border,
+    borderBottomColor: border,
+    borderLeftColor: border,
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
@@ -310,7 +320,15 @@ function AboutContent({
       </div>
 
       {/* TGen info — compact */}
-      <div style={{ ...card, borderLeft: `4px solid ${primary}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div
+        style={{
+          ...card,
+          borderLeftWidth: 4,
+          borderLeftColor: primary,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
         <div
           style={{
             width: 32,
