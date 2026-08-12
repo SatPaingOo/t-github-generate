@@ -1,22 +1,26 @@
 'use client';
 
+import { useState } from 'react';
+
 /**
  * AppPreview — faithful live mockup of the generated Notes+Todos app.
- * Mirrors the ACTUAL app design (shared by both the RN and Electron apps):
- *   - BrandBar on top (secondary color)
- *   - search bar + add button (primary color)
- *   - note cards with colored left accents
- *   - bottom tab bar (Notes / Todos)
- * Phone = single column · Desktop = responsive 2-column grid.
+ * Mirrors the ACTUAL app (shared by RN + Electron):
+ *   - BrandBar (secondary color)
+ *   - search + add button (primary color)
+ *   - note cards with colored accents
+ *   - bottom tab bar: Notes / Todos / About
+ *   - About tab has the in-app theme switcher (Light/Dark/System) — it works
+ *     live, exactly like the real app
  */
 
 import type { Platform } from '@/lib/types';
+import type { ThemeMode } from '@/lib/types';
 
 interface Props {
   appName: string;
   color: string;
   secondaryColor?: string;
-  theme: 'light' | 'dark' | 'system';
+  theme: ThemeMode;
   platform: Platform;
   logo?: string | null;
 }
@@ -30,9 +34,28 @@ const NOTE_SAMPLES = [
   { t: 'Travel todo', s: 'passport, visa, booking…', c: '#F59E0B', time: '4d' },
 ];
 
+const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+];
+
+type PreviewTab = 'notes' | 'todos' | 'about';
+
+function resolveDark(mode: ThemeMode): boolean {
+  if (mode === 'system') {
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  return mode === 'dark';
+}
+
 export function AppPreview({ appName, color, secondaryColor, theme, platform, logo }: Props) {
   const isDesktop = platform === 'windows' || platform === 'macos';
-  const dark = theme === 'dark';
+  // in-app theme switcher (About tab) overrides the configured theme — like the real app
+  const [themeMode, setThemeMode] = useState<ThemeMode>(theme);
+  const [tab, setTab] = useState<PreviewTab>('notes');
+
+  const dark = resolveDark(themeMode);
   const primary = color;
   const secondary = secondaryColor || color;
 
@@ -44,35 +67,11 @@ export function AppPreview({ appName, color, secondaryColor, theme, platform, lo
 
   const initial = (appName || 'T').trim().charAt(0).toUpperCase();
 
+  const common = { appName, primary, secondary, logo, initial, tab, setTab, themeMode, setThemeMode, bg, surface, border, text, muted };
+
   return (
     <div className="flex flex-col items-center">
-      {isDesktop ? (
-        <DesktopMockup
-          appName={appName}
-          primary={primary}
-          secondary={secondary}
-          logo={logo}
-          initial={initial}
-          bg={bg}
-          surface={surface}
-          border={border}
-          text={text}
-          muted={muted}
-        />
-      ) : (
-        <PhoneMockup
-          appName={appName}
-          primary={primary}
-          secondary={secondary}
-          logo={logo}
-          initial={initial}
-          bg={bg}
-          surface={surface}
-          border={border}
-          text={text}
-          muted={muted}
-        />
-      )}
+      {isDesktop ? <DesktopMockup {...common} /> : <PhoneMockup {...common} />}
       <p className="mt-3 text-xs font-medium text-slate-400">
         Live preview — matches the generated {isDesktop ? 'Windows' : 'Android'} app
       </p>
@@ -89,6 +88,11 @@ export function AppPreview({ appName, color, secondaryColor, theme, platform, lo
           <span className="font-semibold text-slate-700">Secondary</span>
           <span className="text-slate-400">header bar · badges</span>
         </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="h-3 w-3 shrink-0 rounded-full bg-slate-500" />
+          <span className="font-semibold text-slate-700">Theme</span>
+          <span className="text-slate-400">switch in the About tab (like the real app)</span>
+        </div>
       </div>
     </div>
   );
@@ -102,7 +106,7 @@ function BrandBar({ name, secondary }: { name: string; secondary: string }) {
       className="flex items-center justify-center gap-1 py-2"
       style={{ background: secondary }}>
       <span className="text-xs font-bold text-white">{name || 'My App'}</span>
-      <span className="text-xs font-medium text-white/75">· TGen</span>
+      <span className="text-xs font-medium text-white/75">· Powered by TGen</span>
     </div>
   );
 }
@@ -156,29 +160,6 @@ function NoteCardRow({
   );
 }
 
-function TabBar({ primary, surface, border, muted }: { primary: string; surface: string; border: string; muted: string }) {
-  return (
-    <div
-      className="flex border-t px-6 py-2"
-      style={{ background: surface, borderColor: border }}>
-      <div className="flex flex-1 flex-col items-center gap-0.5">
-        <span className="text-sm">🗒</span>
-        <span className="text-[10px] font-bold" style={{ color: primary }}>
-          Notes
-        </span>
-        <span className="h-1 w-1 rounded-full" style={{ background: primary }} />
-      </div>
-      <div className="flex flex-1 flex-col items-center gap-0.5">
-        <span className="text-sm">✅</span>
-        <span className="text-[10px]" style={{ color: muted }}>
-          Todos
-        </span>
-        <span className="h-1 w-1 rounded-full" style={{ background: 'transparent' }} />
-      </div>
-    </div>
-  );
-}
-
 function SearchRow({ surface, border, primary }: { surface: string; border: string; primary: string }) {
   return (
     <div className="flex items-center gap-2 px-3 pt-3">
@@ -196,6 +177,159 @@ function SearchRow({ surface, border, primary }: { surface: string; border: stri
   );
 }
 
+function TabBar({
+  active,
+  onSelect,
+  primary,
+  surface,
+  border,
+  muted,
+}: {
+  active: PreviewTab;
+  onSelect: (t: PreviewTab) => void;
+  primary: string;
+  surface: string;
+  border: string;
+  muted: string;
+}) {
+  const tabs: { key: PreviewTab; label: string; glyph: string }[] = [
+    { key: 'notes', label: 'Notes', glyph: '🗒' },
+    { key: 'todos', label: 'Todos', glyph: '✅' },
+    { key: 'about', label: 'About', glyph: 'ℹ️' },
+  ];
+  return (
+    <div
+      className="flex border-t px-4 py-2"
+      style={{ background: surface, borderColor: border }}>
+      {tabs.map(t => {
+        const isActive = active === t.key;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onSelect(t.key)}
+            className="flex flex-1 cursor-pointer flex-col items-center gap-0.5 border-none bg-transparent"
+            style={{ fontFamily: 'inherit' }}>
+            <span className="text-sm">{t.glyph}</span>
+            <span className="text-[10px]" style={{ color: isActive ? primary : muted, fontWeight: isActive ? 700 : 400 }}>
+              {t.label}
+            </span>
+            <span className="h-1 w-1 rounded-full" style={{ background: isActive ? primary : 'transparent' }} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** About tab content — mirrors the real AboutScreen (theme switcher included). */
+function AboutContent({
+  appName,
+  primary,
+  logo,
+  initial,
+  themeMode,
+  setThemeMode,
+  surface,
+  border,
+  text,
+  muted,
+}: {
+  appName: string;
+  primary: string;
+  logo?: string | null;
+  initial: string;
+  themeMode: ThemeMode;
+  setThemeMode: (m: ThemeMode) => void;
+  surface: string;
+  border: string;
+  text: string;
+  muted: string;
+}) {
+  const card = {
+    background: surface,
+    border: `1px solid ${border}`,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+  };
+  return (
+    <div className="px-3 py-3">
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 12 }}>
+        <AppIcon primary={primary} logo={logo} initial={initial} />
+        <p style={{ margin: '8px 0 2px', fontSize: 16, fontWeight: 700, color: text }}>{appName || 'My App'}</p>
+        <p style={{ margin: 0, fontSize: 10, color: muted }}>app · v1.0.0</p>
+      </div>
+
+      {/* Theme switcher — live, like the real app */}
+      <div style={card}>
+        <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: text }}>
+          Theme
+        </p>
+        <div style={{ display: 'flex', borderRadius: 10, border: `1px solid ${border}`, background: surface, padding: 3 }}>
+          {THEME_OPTIONS.map(opt => {
+            const isActive = themeMode === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setThemeMode(opt.value)}
+                className="flex-1 cursor-pointer border-none"
+                style={{
+                  borderRadius: 8,
+                  padding: '6px 0',
+                  fontSize: 11,
+                  fontFamily: 'inherit',
+                  background: isActive ? primary : 'transparent',
+                  color: isActive ? '#FFFFFF' : muted,
+                  fontWeight: isActive ? 700 : 400,
+                }}>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* App info */}
+      <div style={card}>
+        <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: text }}>
+          App info
+        </p>
+        {[
+          ['Version', '1.0.0'],
+          ['Package', 'com.example.myapp'],
+          ['Support', 'you@mail.com'],
+        ].map(([l, v], i) => (
+          <div
+            key={l}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              padding: '7px 0',
+              borderBottom: i === 2 ? 'none' : `1px solid ${border}`,
+            }}>
+            <span style={{ fontSize: 11, color: muted }}>{l}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginLeft: 8 }}>
+              {v}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* TGen info */}
+      <div style={card}>
+        <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: text }}>
+          About TGen
+        </p>
+        <p style={{ margin: 0, fontSize: 11, lineHeight: 17, color: muted }}>
+          This app was generated with TGen — a demo app generator. Powered by TGen · v1.0.0
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- phone (Android) ---------------- */
 
 function PhoneMockup(props: {
@@ -204,13 +338,17 @@ function PhoneMockup(props: {
   secondary: string;
   logo?: string | null;
   initial: string;
+  tab: PreviewTab;
+  setTab: (t: PreviewTab) => void;
+  themeMode: ThemeMode;
+  setThemeMode: (m: ThemeMode) => void;
   bg: string;
   surface: string;
   border: string;
   text: string;
   muted: string;
 }) {
-  const { appName, primary, secondary, logo, initial, bg, surface, border, text, muted } = props;
+  const { appName, primary, secondary, logo, initial, tab, setTab, themeMode, setThemeMode, bg, surface, border, text, muted } = props;
   return (
     <div
       className="w-full max-w-[290px] rounded-[2.4rem] border-[10px] shadow-2xl"
@@ -218,24 +356,41 @@ function PhoneMockup(props: {
       <div className="overflow-hidden rounded-[1.7rem]">
         <div style={{ background: bg, minHeight: 460 }}>
           <BrandBar name={appName} secondary={secondary} />
-          <div className="flex items-center gap-2 px-3 pt-3">
-            <AppIcon primary={primary} logo={logo} initial={initial} />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold" style={{ color: text }}>
-                {appName || 'My App'}
-              </p>
-              <p className="text-[10px]" style={{ color: muted }}>
-                Android · v1.0.0
-              </p>
-            </div>
-          </div>
-          <SearchRow surface={surface} border={border} primary={primary} />
-          <div className="space-y-2 px-3 py-3">
-            {NOTE_SAMPLES.slice(0, 4).map((n, i) => (
-              <NoteCardRow key={i} note={n} surface={surface} border={border} text={text} muted={muted} />
-            ))}
-          </div>
-          <TabBar primary={primary} surface={surface} border={border} muted={muted} />
+          {tab === 'about' ? (
+            <AboutContent
+              appName={appName}
+              primary={primary}
+              logo={logo}
+              initial={initial}
+              themeMode={themeMode}
+              setThemeMode={setThemeMode}
+              surface={surface}
+              border={border}
+              text={text}
+              muted={muted}
+            />
+          ) : (
+            <>
+              <div className="flex items-center gap-2 px-3 pt-3">
+                <AppIcon primary={primary} logo={logo} initial={initial} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold" style={{ color: text }}>
+                    {appName || 'My App'}
+                  </p>
+                  <p className="text-[10px]" style={{ color: muted }}>
+                    Android · v1.0.0
+                  </p>
+                </div>
+              </div>
+              <SearchRow surface={surface} border={border} primary={primary} />
+              <div className="space-y-2 px-3 py-3">
+                {NOTE_SAMPLES.slice(0, 4).map((n, i) => (
+                  <NoteCardRow key={i} note={n} surface={surface} border={border} text={text} muted={muted} />
+                ))}
+              </div>
+            </>
+          )}
+          <TabBar active={tab} onSelect={setTab} primary={primary} surface={surface} border={border} muted={muted} />
         </div>
       </div>
     </div>
@@ -250,13 +405,17 @@ function DesktopMockup(props: {
   secondary: string;
   logo?: string | null;
   initial: string;
+  tab: PreviewTab;
+  setTab: (t: PreviewTab) => void;
+  themeMode: ThemeMode;
+  setThemeMode: (m: ThemeMode) => void;
   bg: string;
   surface: string;
   border: string;
   text: string;
   muted: string;
 }) {
-  const { appName, primary, secondary, logo, initial, bg, surface, border, text, muted } = props;
+  const { appName, primary, secondary, logo, initial, tab, setTab, themeMode, setThemeMode, bg, surface, border, text, muted } = props;
   return (
     <div
       className="w-full overflow-hidden rounded-2xl border shadow-2xl"
@@ -276,29 +435,46 @@ function DesktopMockup(props: {
       <div style={{ background: bg, padding: 12 }}>
         <BrandBar name={appName} secondary={secondary} />
 
-        {/* header: icon + actions */}
-        <div className="flex items-center gap-3 px-2 pt-3">
-          <AppIcon primary={primary} logo={logo} initial={initial} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold" style={{ color: text }}>
-              {appName || 'My App'}
-            </p>
-            <p className="text-[11px]" style={{ color: muted }}>
-              Windows app · v1.0.0
-            </p>
-          </div>
-        </div>
+        {tab === 'about' ? (
+          <AboutContent
+            appName={appName}
+            primary={primary}
+            logo={logo}
+            initial={initial}
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+            surface={surface}
+            border={border}
+            text={text}
+            muted={muted}
+          />
+        ) : (
+          <>
+            {/* header: icon + actions */}
+            <div className="flex items-center gap-3 px-2 pt-3">
+              <AppIcon primary={primary} logo={logo} initial={initial} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-bold" style={{ color: text }}>
+                  {appName || 'My App'}
+                </p>
+                <p className="text-[11px]" style={{ color: muted }}>
+                  Windows app · v1.0.0
+                </p>
+              </div>
+            </div>
 
-        <SearchRow surface={surface} border={border} primary={primary} />
+            <SearchRow surface={surface} border={border} primary={primary} />
 
-        {/* notes grid — responsive 1→2 cols */}
-        <div className="grid grid-cols-1 gap-2 px-2 py-3 sm:grid-cols-2">
-          {NOTE_SAMPLES.map((n, i) => (
-            <NoteCardRow key={i} note={n} surface={surface} border={border} text={text} muted={muted} />
-          ))}
-        </div>
+            {/* notes grid — responsive 1→2 cols */}
+            <div className="grid grid-cols-1 gap-2 px-2 py-3 sm:grid-cols-2">
+              {NOTE_SAMPLES.map((n, i) => (
+                <NoteCardRow key={i} note={n} surface={surface} border={border} text={text} muted={muted} />
+              ))}
+            </div>
+          </>
+        )}
 
-        <TabBar primary={primary} surface={surface} border={border} muted={muted} />
+        <TabBar active={tab} onSelect={setTab} primary={primary} surface={surface} border={border} muted={muted} />
       </div>
     </div>
   );
