@@ -1,0 +1,11 @@
+{
+  "appName": "Email Test",
+  "slug": "email-test",
+  "platform": "android",
+  "theme": "light",
+  "primaryColor": "#ec4899",
+  "secondaryColor": "#6366f1",
+  "version": "1.0.0",
+  "file": "email-test-v1.0.0.apk",
+  "builtAt": "2026-08-12T11:47:56Z"
+}
