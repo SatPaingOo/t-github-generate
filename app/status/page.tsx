@@ -20,32 +20,35 @@ const STATUS_META: Record<Build['status'], { label: string; cls: string; dot: st
   failed: { label: 'Failed', cls: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' },
 };
 
-export default function StatusPage() {
-  const [email, setEmail] = useState(
-    typeof window !== 'undefined'
-      ? new URLSearchParams(window.location.search).get('email') || ''
-      : '',
-  );
-  const [loading, setLoading] = useState(false);
-  const [builds, setBuilds] = useState<Build[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [searched, setSearched] = useState(
-    typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('email'),
-  );
+function initialParams() {
+  if (typeof window === 'undefined') return { email: '', code: '' };
+  const s = new URLSearchParams(window.location.search);
+  return { email: s.get('email') || '', code: s.get('code') || '' };
+}
 
-  async function lookUp(e?: React.FormEvent, prefilledEmail?: string) {
+export default function StatusPage() {
+  const initial = initialParams();
+  const [email, setEmail] = useState(initial.email);
+  const [code, setCode] = useState(initial.code);
+  const [loading, setLoading] = useState(false);
+  const [build, setBuild] = useState<Build | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [autoRan, setAutoRan] = useState(false);
+
+  async function lookUp(e?: React.FormEvent, prefilled?: { email: string; code: string }) {
     if (e) e.preventDefault();
     setLoading(true);
     setError(null);
-    setBuilds(null);
-    const target = prefilledEmail ?? email;
+    setBuild(null);
+    const em = prefilled?.email ?? email;
+    const cd = prefilled?.code ?? code;
     try {
-      const res = await fetch(`/api/status?email=${encodeURIComponent(target)}`);
+      const res = await fetch(`/api/status?email=${encodeURIComponent(em)}&code=${encodeURIComponent(cd)}`);
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setError(data.message || 'Lookup failed.');
       } else {
-        setBuilds(data.builds);
+        setBuild(data.build);
       }
     } catch {
       setError('Network error — please try again.');
@@ -54,39 +57,50 @@ export default function StatusPage() {
     }
   }
 
-  // auto-search when arriving with ?email=
-  const [autoRan, setAutoRan] = useState(false);
-  if (searched && !autoRan && typeof window !== 'undefined') {
+  // auto-search when arriving with ?email=...&code=...
+  if ((initial.email || initial.code) && !autoRan && typeof window !== 'undefined') {
     setAutoRan(true);
-    lookUp(undefined, new URLSearchParams(window.location.search).get('email') || undefined);
+    if (initial.email && initial.code) lookUp(undefined, initial);
   }
+
+  const inputCls =
+    'w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100';
 
   return (
     <main className="min-h-screen bg-slate-50 py-10">
-      <div className="mx-auto w-full max-w-2xl px-4">
+      <div className="mx-auto w-full max-w-xl px-4">
         <a href="/" className="text-xs font-medium text-indigo-600 hover:underline">
           ← Back to generator
         </a>
         <header className="mt-4 text-center">
           <h1 className="text-2xl font-bold text-slate-900">📦 Build Status</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Enter the email you used when generating — see your apps and their build status.
+            Enter the <span className="font-semibold">email</span> and{' '}
+            <span className="font-semibold">access code</span> you used when generating — the
+            code is your private key to the build.
           </p>
         </header>
 
-        <form onSubmit={lookUp} className="mt-6 flex gap-2">
+        <form onSubmit={lookUp} className="mt-6 space-y-2">
           <input
             type="email"
             required
             value={email}
             onChange={e => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            className={inputCls}
+          />
+          <input
+            required
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase())}
+            placeholder="TGEN-XXXXXXXX (your access code)"
+            className={inputCls}
           />
           <button
             type="submit"
             disabled={loading}
-            className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
+            className="w-full rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60">
             {loading ? 'Checking…' : 'Check status'}
           </button>
         </form>
@@ -97,51 +111,38 @@ export default function StatusPage() {
           </div>
         ) : null}
 
-        {builds ? (
-          builds.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-              No builds found for this email yet. Generate an app first!
+        {build ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-900">{build.appName}</p>
+                <p className="text-[11px] text-slate-400">
+                  {build.platform === 'windows' ? 'Windows' : 'Android'} · {build.slug} ·{' '}
+                  {new Date(build.createdAt).toLocaleString()}
+                </p>
+              </div>
+              <span className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_META[build.status].cls}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${STATUS_META[build.status].dot}`} />
+                {STATUS_META[build.status].label}
+              </span>
             </div>
-          ) : (
-            <div className="mt-6 space-y-3">
-              {builds.map(b => {
-                const meta = STATUS_META[b.status];
-                return (
-                  <div key={b.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-900">{b.appName}</p>
-                        <p className="text-[11px] text-slate-400">
-                          {b.platform === 'windows' ? 'Windows' : 'Android'} · {b.slug} ·{' '}
-                          {new Date(b.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <span className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${meta.cls}`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                        {meta.label}
-                      </span>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      {b.status === 'done' ? (
-                        <a
-                          href={b.downloadUrl}
-                          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
-                          ⬇ Download
-                        </a>
-                      ) : null}
-                      <a
-                        href={b.folderUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-                        View folder ↗
-                      </a>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="mt-3 flex gap-2">
+              {build.status === 'done' ? (
+                <a
+                  href={build.downloadUrl}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
+                  ⬇ Download
+                </a>
+              ) : null}
+              <a
+                href={build.folderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                View folder ↗
+              </a>
             </div>
-          )
+          </div>
         ) : null}
       </div>
     </main>

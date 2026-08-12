@@ -1,39 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGenerationsByEmail } from '@/lib/store';
+import { getGenerationByEmailAndCode } from '@/lib/store';
 import { exportRawUrl, exportDirUrl } from '@/lib/github';
 
 export const runtime = 'nodejs';
 
 /**
- * Status API — given an email, return all builds for it with live status.
- * GET /api/status?email=user@example.com
+ * Status API — given the email + single-use code used at generation time,
+ * return that build with live status.
+ * GET /api/status?email=user@example.com&code=TGEN-XXXXXXX
  */
 export async function GET(req: NextRequest) {
   const email = req.nextUrl.searchParams.get('email')?.trim();
+  const code = req.nextUrl.searchParams.get('code')?.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ ok: false, message: 'A valid email is required.' }, { status: 400 });
   }
+  if (!code) {
+    return NextResponse.json(
+      { ok: false, message: 'The access code is required (it is the key to your build).' },
+      { status: 400 },
+    );
+  }
 
-  const gens = await getGenerationsByEmail(email);
+  const gen = await getGenerationByEmailAndCode(email, code);
+  if (!gen) {
+    return NextResponse.json(
+      { ok: false, message: 'No build found for this email + code pair.' },
+      { status: 404 },
+    );
+  }
 
-  const builds = gens.map(g => {
-    const version = g.version || '1.0.0';
-    const filename =
-      g.platform === 'windows'
-        ? `${g.slug}-Setup-v${version}.exe`
-        : `${g.slug}-v${version}.apk`;
-    return {
-      id: g.id,
-      appName: g.appName,
-      slug: g.slug,
-      platform: g.platform,
-      status: g.status,
-      createdAt: g.createdAt,
-      updatedAt: g.updatedAt,
-      downloadUrl: exportRawUrl(g.platform, g.slug, filename),
-      folderUrl: exportDirUrl(g.platform, g.slug),
-    };
+  const version = gen.version || '1.0.0';
+  const filename =
+    gen.platform === 'windows'
+      ? `${gen.slug}-Setup-v${version}.exe`
+      : `${gen.slug}-v${version}.apk`;
+
+  return NextResponse.json({
+    ok: true,
+    build: {
+      id: gen.id,
+      appName: gen.appName,
+      slug: gen.slug,
+      platform: gen.platform,
+      status: gen.status,
+      createdAt: gen.createdAt,
+      updatedAt: gen.updatedAt,
+      downloadUrl: exportRawUrl(gen.platform, gen.slug, filename),
+      folderUrl: exportDirUrl(gen.platform, gen.slug),
+    },
   });
-
-  return NextResponse.json({ ok: true, email, builds });
 }

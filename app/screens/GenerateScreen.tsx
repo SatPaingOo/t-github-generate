@@ -358,7 +358,7 @@ export function GenerateScreen() {
                     </a>
                   ) : null}
                   <a
-                    href={`/status?email=${encodeURIComponent(supportEmail)}`}
+                    href={`/status?email=${encodeURIComponent(supportEmail)}&code=${encodeURIComponent(code)}`}
                     className="mt-2 inline-block rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">
                     📦 Track build status
                   </a>

@@ -195,6 +195,18 @@ export async function bumpRateLimit(ip: string): Promise<void> {
 
 /* ---------------- status lookup ---------------- */
 
+export async function getGenerationByEmailAndCode(
+  email: string,
+  code: string,
+): Promise<GenerationRecord | null> {
+  const all = await listGenerations();
+  const e = email.trim().toLowerCase();
+  const c = code.trim().toUpperCase();
+  return (
+    all.find(g => g.email.toLowerCase() === e && g.code.toUpperCase() === c) || null
+  );
+}
+
 export async function getGenerationsByEmail(email: string): Promise<GenerationRecord[]> {
   const all = await listGenerations();
   const e = email.trim().toLowerCase();
