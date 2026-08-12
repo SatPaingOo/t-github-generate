@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Field, TextInput } from '@/components/ui/Field';
 import { Badge } from '@/components/ui/Badge';
 import { AppPreview } from '@/components/feature/AppPreview';
+import { DefaultApps } from '@/components/feature/DefaultApps';
 
 export function GenerateScreen() {
   const [appName, setAppName] = useState('');
@@ -129,6 +130,9 @@ export function GenerateScreen() {
           </div>
         </div>
       </section>
+
+      {/* ============ DEFAULT APPS ============ */}
+      <DefaultApps />
 
       {/* ============ FORM + PREVIEW ============ */}
       <section className="mx-auto max-w-6xl px-4 py-10">

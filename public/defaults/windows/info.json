@@ -1,0 +1,12 @@
+{
+  "appName": "TGen App",
+  "slug": "default",
+  "platform": "windows",
+  "theme": "light",
+  "primaryColor": "#3B82F6",
+  "secondaryColor": "#64748B",
+  "version": "1.0.0",
+  "file": "setup.exe",
+  "sizeBytes": 92849253,
+  "builtAt": "2026-08-12T04:41:35Z"
+}
