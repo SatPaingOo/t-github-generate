@@ -10,6 +10,7 @@ const DEFAULTS = [
     platform: 'android',
     label: 'Android',
     icon: '🤖',
+    appIcon: '/default-logo.png',
     appName: 'TGen App',
     file: 'TGen-App-v1.0.0.apk',
     size: '56 MB',
@@ -21,6 +22,7 @@ const DEFAULTS = [
     platform: 'windows',
     label: 'Windows',
     icon: '🪟',
+    appIcon: '/default-logo.png',
     appName: 'TGen App',
     file: 'TGen-App-Setup-v1.0.0.exe',
     size: '89 MB',
@@ -54,8 +56,18 @@ export function DefaultApps() {
               href={d.href}
               download
               className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-2xl transition-colors group-hover:bg-indigo-50">
-                {d.icon}
+              <div className="relative shrink-0">
+                {/* actual default app icon */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={d.appIcon}
+                  alt={`${d.appName} icon`}
+                  className="h-14 w-14 rounded-2xl object-cover ring-1 ring-slate-200"
+                />
+                {/* platform emoji badge */}
+                <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-sm shadow ring-1 ring-slate-200">
+                  {d.icon}
+                </span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
