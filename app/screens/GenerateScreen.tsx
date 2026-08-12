@@ -86,6 +86,18 @@ export function GenerateScreen() {
           </div>
           <div className="flex items-center gap-1">
             <a
+              href="/status"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800">
+              <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current">
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-12.25a.75.75 0 00-1.5 0v5.19l3.28 1.64a.75.75 0 10.69-1.33l-2.47-1.24V5.75z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Status
+            </a>
+            <a
               href="/about"
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800">
               <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current">
@@ -345,6 +357,11 @@ export function GenerateScreen() {
                       View folder {result.repoUrl} ↗
                     </a>
                   ) : null}
+                  <a
+                    href={`/status?email=${encodeURIComponent(supportEmail)}`}
+                    className="mt-2 inline-block rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">
+                    📦 Track build status
+                  </a>
                 </div>
               ) : null}
 

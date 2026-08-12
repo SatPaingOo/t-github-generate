@@ -46,4 +46,5 @@ export interface GenerationRecord {
   status: GenerationStatus;
   releaseUrl?: string;
   updatedAt: string;
+  version?: string;
 }

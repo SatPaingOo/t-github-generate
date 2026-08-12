@@ -16,9 +16,14 @@ import { readRepoFile, writeRepoFile } from './github';
 
 const CODES_PATH = 'data/codes.json';
 const CSV_PATH = 'data/generations.csv';
+const RATE_LIMIT_PATH = 'data/rate_limits.json';
 
 const CSV_HEADER =
-  'id,createdAt,email,appName,slug,platform,code,repoUrl,repoName,status,releaseUrl,updatedAt\n';
+  'id,createdAt,email,appName,slug,platform,code,repoUrl,repoName,status,releaseUrl,updatedAt,version\n';
+
+/** Per-IP generation limit (protects Actions minutes). */
+export const RATE_LIMIT_MAX = 3;
+export const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 function escapeCsv(v: string): string {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
@@ -42,6 +47,7 @@ function parseCsv(text: string): GenerationRecord[] {
       status: cells[9] as GenerationStatus,
       releaseUrl: cells[10] || undefined,
       updatedAt: cells[11],
+      version: cells[12] || '1.0.0',
     };
   });
 }
@@ -95,6 +101,7 @@ export async function appendGeneration(rec: GenerationRecord): Promise<void> {
     rec.status,
     rec.releaseUrl ?? '',
     rec.updatedAt,
+    rec.version ?? '1.0.0',
   ]
     .map(escapeCsv)
     .join(',') + '\n';
@@ -132,4 +139,66 @@ export async function updateGenerationStatus(
 
 export function idGen(prefix = 'gen'): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/* ---------------- rate limit (per IP) ---------------- */
+
+interface RateLimitData {
+  [ip: string]: number[]; // recent generation timestamps
+}
+
+async function readRateLimits(): Promise<RateLimitData> {
+  const file = await readRepoFile(RATE_LIMIT_PATH);
+  if (!file) return {};
+  try {
+    return JSON.parse(file.content) as RateLimitData;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Check whether `ip` may generate now. Returns remaining quota (or 0) and
+ * how long to wait if blocked.
+ */
+export async function checkRateLimit(ip: string): Promise<{
+  allowed: boolean;
+  remaining: number;
+  retryAfterMin: number;
+}> {
+  const data = await readRateLimits();
+  const now = Date.now();
+  const times = (data[ip] || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  if (times.length >= RATE_LIMIT_MAX) {
+    const oldest = Math.min(...times);
+    const retryAfterMin = Math.max(1, Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldest)) / 60000));
+    return { allowed: false, remaining: 0, retryAfterMin };
+  }
+  return { allowed: true, remaining: RATE_LIMIT_MAX - times.length, retryAfterMin: 0 };
+}
+
+/** Record a successful generation for `ip`. */
+export async function bumpRateLimit(ip: string): Promise<void> {
+  const data = await readRateLimits();
+  const now = Date.now();
+  data[ip] = (data[ip] || []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  data[ip].push(now);
+  for (const k of Object.keys(data)) {
+    if (data[k].length === 0) delete data[k];
+  }
+  await writeRepoFile(
+    RATE_LIMIT_PATH,
+    JSON.stringify(data, null, 2) + '\n',
+    'chore: rate limit [skip ci]',
+  );
+}
+
+/* ---------------- status lookup ---------------- */
+
+export async function getGenerationsByEmail(email: string): Promise<GenerationRecord[]> {
+  const all = await listGenerations();
+  const e = email.trim().toLowerCase();
+  return all
+    .filter(g => g.email.toLowerCase() === e)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

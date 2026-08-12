@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRequest, ValidationError } from '@/lib/sanitize';
-import { consumeCode, appendGeneration, idGen, listCodes, saveCodes } from '@/lib/store';
+import {
+  consumeCode,
+  appendGeneration,
+  idGen,
+  listCodes,
+  saveCodes,
+  checkRateLimit,
+  bumpRateLimit,
+  RATE_LIMIT_MAX,
+} from '@/lib/store';
 import { exportDirUrl, exportRawUrl, triggerExportBuild, uploadExportLogo } from '@/lib/github';
 import type { GenerateRequest } from '@/lib/types';
 
 export const runtime = 'nodejs';
+
+function clientIp(req: NextRequest): string {
+  const fwd = req.headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0].trim();
+  return req.headers.get('x-real-ip') || 'unknown';
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +28,20 @@ export async function POST(req: NextRequest) {
     // 1. validate + sanitize the form payload
     const v = validateRequest(raw);
 
-    // 2. consume the code (single-use) — this is the rate limiter
+    // 1b. per-IP rate limit (protects Actions minutes)
+    const ip = clientIp(req);
+    const limit = await checkRateLimit(ip);
+    if (!limit.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: `Too many requests from this IP (max ${RATE_LIMIT_MAX} per hour). Try again in ~${limit.retryAfterMin} min.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    // 2. consume the code (single-use)
     const code = await consumeCode(v.code);
     if (!code) {
       return NextResponse.json(
@@ -73,7 +101,11 @@ export async function POST(req: NextRequest) {
       repoName: `public/exports/${v.platform}/${v.slug}`,
       status: 'building',
       updatedAt: new Date().toISOString(),
+      version: v.version,
     });
+
+    // 6. record this IP's generation (rate limit)
+    await bumpRateLimit(ip);
 
     return NextResponse.json({
       ok: true,
