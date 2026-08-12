@@ -102,16 +102,13 @@ export function AppPreview({ appName, color, secondaryColor, theme, platform, lo
 /* ---------------- shared pieces ---------------- */
 
 function AppIcon({ primary, logo, initial }: { primary: string; logo?: string | null; initial: string }) {
+  const src = logo || '/default-logo.png';
   return (
     <div
-      className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-lg font-bold text-white shrink-0"
+      className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl shrink-0"
       style={{ background: primary }}>
-      {logo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt="logo" className="h-full w-full object-cover" />
-      ) : (
-        initial
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="logo" className="h-full w-full object-cover" />
     </div>
   );
 }
