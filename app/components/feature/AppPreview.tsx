@@ -100,17 +100,6 @@ export function AppPreview({ appName, color, secondaryColor, theme, platform, lo
 
 /* ---------------- shared pieces ---------------- */
 
-function BrandBar({ name, secondary }: { name: string; secondary: string }) {
-  return (
-    <div
-      className="flex items-center justify-center gap-1 py-2"
-      style={{ background: secondary }}>
-      <span className="text-xs font-bold text-white">{name || 'My App'}</span>
-      <span className="text-xs font-medium text-white/75">· Powered by TGen</span>
-    </div>
-  );
-}
-
 function AppIcon({ primary, logo, initial }: { primary: string; logo?: string | null; initial: string }) {
   return (
     <div
@@ -317,14 +306,29 @@ function AboutContent({
         ))}
       </div>
 
-      {/* TGen info */}
-      <div style={card}>
-        <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: text }}>
-          About TGen
-        </p>
-        <p style={{ margin: 0, fontSize: 11, lineHeight: 17, color: muted }}>
-          This app was generated with TGen — a demo app generator. Powered by TGen · v1.0.0
-        </p>
+      {/* TGen info — compact */}
+      <div style={{ ...card, borderLeft: `4px solid ${primary}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            background: primary,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 15,
+            flexShrink: 0,
+          }}>
+          ⚡
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: text }}>Made with TGen</p>
+          <p style={{ margin: '1px 0 0', fontSize: 10, color: muted }}>This app was built with TGen — a demo app generator.</p>
+          <p style={{ margin: '2px 0 0', fontSize: 9, color: primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            github.com/SatPaingOo/t-github-generate
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -355,7 +359,6 @@ function PhoneMockup(props: {
       style={{ background: '#0F172A', borderColor: '#0F172A' }}>
       <div className="overflow-hidden rounded-[1.7rem]">
         <div style={{ background: bg, minHeight: 460 }}>
-          <BrandBar name={appName} secondary={secondary} />
           {tab === 'about' ? (
             <AboutContent
               appName={appName}
@@ -433,8 +436,6 @@ function DesktopMockup(props: {
       </div>
 
       <div style={{ background: bg, padding: 12 }}>
-        <BrandBar name={appName} secondary={secondary} />
-
         {tab === 'about' ? (
           <AboutContent
             appName={appName}
