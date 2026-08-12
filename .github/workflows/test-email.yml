@@ -1,0 +1,49 @@
+name: test-email
+
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: "Recipient email (default: SMTP_USER)"
+        required: false
+        default: ""
+
+# One-off check that SMTP creds work — sends a test email.
+permissions:
+  contents: read
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Send test email
+        shell: bash
+        env:
+          TO: ${{ github.event.inputs.to }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          npm i nodemailer --no-save
+          node -e "
+            const nodemailer = require('nodemailer');
+            const transporter = nodemailer.createTransport({
+              host: process.env.SMTP_HOST,
+              port: Number(process.env.SMTP_PORT || 465),
+              secure: true,
+              auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+            });
+            (async () => {
+              const to = process.env.TO || process.env.SMTP_USER;
+              await transporter.sendMail({
+                from: process.env.SMTP_USER,
+                to,
+                subject: '✅ TGen SMTP test — it works!',
+                text: 'SMTP is configured correctly. Build-complete emails will now be sent.',
+              });
+              console.log('Test email sent to', to);
+            })().catch(e => { console.error('FAILED:', e.message); process.exit(1); });
+          "

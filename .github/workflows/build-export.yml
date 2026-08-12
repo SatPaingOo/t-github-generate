@@ -169,3 +169,19 @@ jobs:
             git pull --rebase origin main --autostash
             git push
           fi
+
+      - name: Email user (build complete)
+        shell: bash
+        env:
+          SLUG: ${{ github.event.inputs.slug }}
+          PLATFORM: ${{ github.event.inputs.platform }}
+          APP_NAME: ${{ github.event.inputs.appName }}
+          VERSION: ${{ github.event.inputs.version }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM: ${{ secrets.SMTP_USER }}
+        run: |
+          npm i nodemailer --no-save
+          node .github/scripts/send-email.mjs
