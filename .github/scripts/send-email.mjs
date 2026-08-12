@@ -12,6 +12,13 @@
 
 import nodemailer from 'nodemailer';
 import fs from 'node:fs';
+import dns from 'node:dns/promises';
+
+// GitHub runners have no IPv6 → resolve the SMTP host to IPv4 and keep the
+// hostname as the TLS SNI (nodemailer's `family` option is unreliable).
+const [{ address: smtpIpv4 }] = await dns.lookup(process.env.SMTP_HOST, {
+  family: 4,
+});
 
 const slug = process.env.SLUG;
 const platform = process.env.PLATFORM;
@@ -41,10 +48,10 @@ const downloadUrl = `https://raw.githubusercontent.com/SatPaingOo/t-github-gener
 const folderUrl = `https://github.com/SatPaingOo/t-github-generate/tree/main/public/exports/${platform}/${slug}`;
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: smtpIpv4,
   port: Number(process.env.SMTP_PORT || 465),
   secure: true,
-  family: 4, // GitHub runners block IPv6 → force IPv4 for Gmail
+  tls: { servername: process.env.SMTP_HOST },
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
