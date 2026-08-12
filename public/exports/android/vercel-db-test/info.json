@@ -1,0 +1,11 @@
+{
+  "appName": "Vercel DB Test",
+  "slug": "vercel-db-test",
+  "platform": "android",
+  "theme": "light",
+  "primaryColor": "#06b6d4",
+  "secondaryColor": "#f59e0b",
+  "version": "1.0.0",
+  "file": "vercel-db-test-v1.0.0.apk",
+  "builtAt": "2026-08-12T08:11:07Z"
+}
