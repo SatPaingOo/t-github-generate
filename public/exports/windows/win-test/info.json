@@ -1,0 +1,11 @@
+{
+  "appName": "Win Test",
+  "slug": "win-test",
+  "platform": "windows",
+  "theme": "light",
+  "primaryColor": "#10b981",
+  "secondaryColor": "#6366f1",
+  "version": "1.0.0",
+  "file": "win-test-Setup-v1.0.0.exe",
+  "builtAt": "2026-08-12T06:43:16Z"
+}
