@@ -203,6 +203,11 @@ Full flow tested with a real generation on GitHub:
 - **Website AppPreview** now faithfully mirrors the real app: BrandBar (secondary color), search + add button, note cards with colored accents, Notes/Todos tab bar; **responsive** — phone = single column, Windows = 2-col grid
 - Tests: RN jest 6/6, Electron vitest 4/4 (notes/todos CRUD + sort verified)
 
+### ✅ Default apps (pre-built, direct download — no code)
+- `public/defaults/android/app.apk` (59 MB) + `public/defaults/windows/setup.exe` (92 MB) — built from the template repos (fixed builds) and committed
+- Website **"Default apps — download now"** section lets users grab a working app instantly, then compare with a generated (custom) one
+- Raw download verified: `https://raw.githubusercontent.com/SatPaingOo/t-github-generate/main/public/defaults/{android/app.apk|windows/setup.exe}` (200/206)
+
 ### ✅ Local E2E — Android + Windows (both PASS, no GitHub Actions used)
 Ran real install → launch → interact on the Android emulator + built Windows exe:
 - **Android (emulator, UI-level)**: app launches with custom name; Notes (create/edit/delete + SQLite), Todos (add/toggle done/priority cycle Low→Med→High), **persistence** (force-stop → relaunch → data + done-state survives) — all PASS
