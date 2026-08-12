@@ -13,6 +13,7 @@
 
 import type { CodeRecord, GenerationRecord, GenerationStatus } from './types';
 import { readRepoFile, writeRepoFile } from './github';
+import { maskEmail } from './sanitize';
 
 const CODES_PATH = 'data/codes.json';
 const CSV_PATH = 'data/generations.csv';
@@ -200,10 +201,14 @@ export async function getGenerationByEmailAndCode(
   code: string,
 ): Promise<GenerationRecord | null> {
   const all = await listGenerations();
-  const e = email.trim().toLowerCase();
   const c = code.trim().toUpperCase();
+  // emails are stored masked — compare the masked form of the query
+  const e = email.trim().toLowerCase();
+  const masked = maskEmail(e);
   return (
-    all.find(g => g.email.toLowerCase() === e && g.code.toUpperCase() === c) || null
+    all.find(
+      g => g.email.toLowerCase() === masked && g.code.toUpperCase() === c,
+    ) || null
   );
 }
 

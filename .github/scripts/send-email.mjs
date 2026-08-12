@@ -40,19 +40,11 @@ const slug = process.env.SLUG;
 const platform = process.env.PLATFORM;
 const appName = process.env.APP_NAME;
 const version = process.env.VERSION || '1.0.0';
+// real email comes from the workflow dispatch payload (never stored in the CSV)
+const email = process.env.SUPPORT_EMAIL || process.env.TO;
 
-// generations.csv columns: id,createdAt,email,appName,slug,platform,code,repoUrl,repoName,status,releaseUrl,updatedAt
-const csv = fs.existsSync('data/generations.csv')
-  ? fs.readFileSync('data/generations.csv', 'utf8')
-  : '';
-const rows = csv.split('\n').filter(Boolean).slice(1);
-const match = rows
-  .map(line => line.split(','))
-  .find(cells => cells[4] === slug && cells[5] === platform);
-
-const email = match ? match[2] : null;
 if (!email) {
-  console.log(`[email] no generations.csv row for ${slug}/${platform} — skipping`);
+  console.log('[email] no recipient email provided — skipping');
   process.exit(0);
 }
 

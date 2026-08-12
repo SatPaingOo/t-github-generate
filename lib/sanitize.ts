@@ -72,6 +72,19 @@ export function sanitizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/**
+ * Mask an email so the full address never lands in a public log/CSV.
+ * e.g. satpaingoov2@gmail.com → satp*****@gmail.com
+ * Status lookup matches on the masked form + the single-use code.
+ */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const visible = local.slice(0, 4);
+  const dots = local.length > 4 ? '*****' : '**';
+  return `${visible}${dots}@${domain}`;
+}
+
 /** Validate a user-supplied logo (data URL) — decode, size-check, return bytes. */
 export function decodeLogo(logoBase64: string | undefined): Buffer | null {
   if (!logoBase64) return null;

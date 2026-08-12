@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateRequest, ValidationError } from '@/lib/sanitize';
+import { validateRequest, ValidationError, maskEmail } from '@/lib/sanitize';
 import {
   consumeCode,
   appendGeneration,
@@ -84,7 +84,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. log the generation (status = building; artifact lands in public/exports)
-    //    artifact filename uses the user's app (slug + version) — must match build-export.yml
+    //    email is stored MASKED — the real email only flows to the workflow
+    //    (via dispatch payload) for the notifier, never into the public CSV.
     const filename =
       v.platform === 'windows'
         ? `${v.slug}-Setup-v${v.version}.exe`
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
     await appendGeneration({
       id: idGen(),
       createdAt: new Date().toISOString(),
-      email: v.supportEmail,
+      email: maskEmail(v.supportEmail),
       appName: v.appName,
       slug: v.slug,
       platform: v.platform,
