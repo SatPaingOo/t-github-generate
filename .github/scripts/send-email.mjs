@@ -16,7 +16,7 @@ import dns from 'node:dns/promises';
 
 // GitHub runners have no IPv6 → resolve the SMTP host to IPv4 and keep the
 // hostname as the TLS SNI (nodemailer's `family` option is unreliable).
-const [{ address: smtpIpv4 }] = await dns.lookup(process.env.SMTP_HOST, {
+const { address: smtpIpv4 } = await dns.lookup(process.env.SMTP_HOST, {
   family: 4,
 });
 
