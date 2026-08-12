@@ -287,11 +287,6 @@ function DesktopMockup(props: {
               Windows app · v1.0.0
             </p>
           </div>
-          <span
-            className="rounded-full px-3 py-1 text-[11px] font-semibold text-white"
-            style={{ background: primary }}>
-            exe
-          </span>
         </div>
 
         <SearchRow surface={surface} border={border} primary={primary} />
