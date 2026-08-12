@@ -47,44 +47,55 @@ const filename =
 const downloadUrl = `https://raw.githubusercontent.com/SatPaingOo/t-github-generate/main/public/exports/${platform}/${slug}/${filename}`;
 const folderUrl = `https://github.com/SatPaingOo/t-github-generate/tree/main/public/exports/${platform}/${slug}`;
 
-const transporter = nodemailer.createTransport({
-  host: smtpIpv4,
-  port: Number(process.env.SMTP_PORT || 465),
-  secure: true,
-  tls: { servername: process.env.SMTP_HOST },
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
 const platformLabel = platform === 'windows' ? 'Windows' : 'Android';
 
-await transporter.sendMail({
-  from: process.env.EMAIL_FROM || process.env.SMTP_USER,
-  to: email,
-  subject: `🎉 ${appName} is ready! (${platformLabel})`,
-  html: `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #F1F5F9; border-radius: 16px;">
-      <div style="background: linear-gradient(135deg,#6366F1,#8B5CF6); border-radius: 12px; padding: 20px; text-align: center; color: #fff;">
-        <h2 style="margin: 0;">⚡ ${appName}</h2>
-        <p style="margin: 4px 0 0; opacity: 0.85;">Your ${platformLabel} app is ready!</p>
-      </div>
-      <div style="background: #fff; border-radius: 12px; padding: 20px; margin-top: 16px;">
-        <p style="margin: 0 0 12px; color: #334155;">Download your app file below:</p>
-        <a href="${downloadUrl}" style="display: block; text-align: center; background: #6366F1; color: #fff; text-decoration: none; padding: 12px; border-radius: 10px; font-weight: 600;">
-          ⬇ Download ${filename}
-        </a>
-        <p style="margin: 16px 0 0; font-size: 12px; color: #64748B;">
-          Or view the export folder:<br/>
-          <a href="${folderUrl}" style="color: #6366F1;">${folderUrl}</a>
-        </p>
-      </div>
-      <p style="text-align: center; font-size: 11px; color: #94A3B8; margin-top: 16px;">
-        Made with TGen — demo app generator · testing purposes only
+async function sendOnPort(port, secure) {
+  const t = nodemailer.createTransport({
+    host: smtpIpv4,
+    port,
+    secure,
+    tls: { servername: process.env.SMTP_HOST },
+    connectionTimeout: 20000,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+  await t.sendMail({
+    from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: `🎉 ${appName} is ready! (${platformLabel})`,
+    html: htmlBody,
+  });
+}
+
+const htmlBody = `
+  <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #F1F5F9; border-radius: 16px;">
+    <div style="background: linear-gradient(135deg,#6366F1,#8B5CF6); border-radius: 12px; padding: 20px; text-align: center; color: #fff;">
+      <h2 style="margin: 0;">⚡ ${appName}</h2>
+      <p style="margin: 4px 0 0; opacity: 0.85;">Your ${platformLabel} app is ready!</p>
+    </div>
+    <div style="background: #fff; border-radius: 12px; padding: 20px; margin-top: 16px;">
+      <p style="margin: 0 0 12px; color: #334155;">Download your app file below:</p>
+      <a href="${downloadUrl}" style="display: block; text-align: center; background: #6366F1; color: #fff; text-decoration: none; padding: 12px; border-radius: 10px; font-weight: 600;">
+        ⬇ Download ${filename}
+      </a>
+      <p style="margin: 16px 0 0; font-size: 12px; color: #64748B;">
+        Or view the export folder:<br/>
+        <a href="${folderUrl}" style="color: #6366F1;">${folderUrl}</a>
       </p>
     </div>
-  `,
-});
+    <p style="text-align: center; font-size: 11px; color: #94A3B8; margin-top: 16px;">
+      Made with TGen — demo app generator · testing purposes only
+    </p>
+  </div>
+`;
 
-console.log(`[email] sent to ${email}`);
+for (const [port, secure] of [[465, true], [587, false]]) {
+  try {
+    await sendOnPort(port, secure);
+    console.log(`[email] sent to ${email} via port ${port}`);
+    process.exit(0);
+  } catch (err) {
+    console.log(`[email] port ${port} failed: ${err.message}`);
+  }
+}
+console.error('[email] ALL SMTP PORTS FAILED');
+process.exit(1);
