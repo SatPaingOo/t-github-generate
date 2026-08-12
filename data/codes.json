@@ -16,5 +16,35 @@
     "maxUses": 1,
     "used": 1,
     "createdAt": "2026-08-11T00:00:00Z"
+  },
+  {
+    "code": "DEMO-0004",
+    "maxUses": 1,
+    "used": 1,
+    "createdAt": "2026-08-12T06:11:59.013Z"
+  },
+  {
+    "code": "DEMO-0005",
+    "maxUses": 1,
+    "used": 0,
+    "createdAt": "2026-08-12T06:11:59.013Z"
+  },
+  {
+    "code": "DEMO-0006",
+    "maxUses": 1,
+    "used": 0,
+    "createdAt": "2026-08-12T06:11:59.013Z"
+  },
+  {
+    "code": "DEMO-0007",
+    "maxUses": 1,
+    "used": 0,
+    "createdAt": "2026-08-12T06:11:59.013Z"
+  },
+  {
+    "code": "DEMO-0008",
+    "maxUses": 1,
+    "used": 0,
+    "createdAt": "2026-08-12T06:11:59.013Z"
   }
 ]

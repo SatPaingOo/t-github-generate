@@ -86,11 +86,18 @@ export function GenerateScreen() {
               <p className="text-[10px] text-slate-400">App Generator</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800">
-            <a href="/about" className="flex items-center gap-1.5">
-              ℹ️ About
-            </a>
-          </div>
+          <a
+            href="/about"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800">
+            <svg viewBox="0 0 20 20" className="h-4 w-4 fill-current">
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
+                clipRule="evenodd"
+              />
+            </svg>
+            About
+          </a>
           <a
             href="https://github.com/SatPaingOo/t-github-generate"
             target="_blank"
