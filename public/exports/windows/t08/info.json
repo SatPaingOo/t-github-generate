@@ -1,0 +1,11 @@
+{
+  "appName": "T08",
+  "slug": "t08",
+  "platform": "windows",
+  "theme": "light",
+  "primaryColor": "#3b82f6",
+  "secondaryColor": "#64748b",
+  "version": "1.0.0",
+  "file": "t08-Setup-v1.0.0.exe",
+  "builtAt": "2026-08-13T15:39:27Z"
+}
