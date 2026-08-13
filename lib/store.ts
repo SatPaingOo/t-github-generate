@@ -20,6 +20,7 @@ const CODES_PATH = 'data/codes.json';
 const CSV_PATH = 'data/generations.csv';
 const RATE_LIMIT_PATH = 'data/rate_limits.json';
 const EMAIL_LIMIT_PATH = 'data/email_limits.json';
+const QUOTA_PATH = 'data/build_quota.json';
 
 const CSV_HEADER =
   'id,createdAt,email,appName,slug,platform,code,repoUrl,repoName,status,releaseUrl,updatedAt,version\n';
@@ -280,6 +281,64 @@ export async function queuePositionOf(createdAt: string): Promise<number> {
     g => (g.status === 'building' || g.status === 'queued') && g.createdAt < createdAt,
   );
   return before.length + 1;
+}
+
+/* ---------------- monthly build quota (Actions minutes budget) ---------------- */
+
+/**
+ * The owner's GitHub account has a ~2000 min/month Actions budget. Each build
+ * costs ~5–15 min, so cap total builds per calendar month well under that.
+ * When the cap is hit the site stops accepting builds (no code is consumed)
+ * and tells the user it resumes next month.
+ */
+export const MONTHLY_BUILD_MAX = 120;
+
+interface BuildQuotaData {
+  month: string; // YYYY-MM
+  builds: number;
+}
+
+function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+async function readBuildQuota(): Promise<BuildQuotaData> {
+  const file = await readRepoFile(QUOTA_PATH);
+  if (!file) return { month: currentMonth(), builds: 0 };
+  try {
+    const d = JSON.parse(file.content) as BuildQuotaData;
+    if (d.month !== currentMonth()) return { month: currentMonth(), builds: 0 }; // new month → reset
+    return d;
+  } catch {
+    return { month: currentMonth(), builds: 0 };
+  }
+}
+
+export async function getBuildQuota(): Promise<{
+  month: string;
+  used: number;
+  max: number;
+  remaining: number;
+  available: boolean;
+}> {
+  const d = await readBuildQuota();
+  return {
+    month: d.month,
+    used: d.builds,
+    max: MONTHLY_BUILD_MAX,
+    remaining: Math.max(0, MONTHLY_BUILD_MAX - d.builds),
+    available: d.builds < MONTHLY_BUILD_MAX,
+  };
+}
+
+/** Record a successful workflow dispatch for the current month. */
+export async function bumpBuildQuota(): Promise<void> {
+  const d = await readBuildQuota();
+  await writeRepoFile(
+    QUOTA_PATH,
+    JSON.stringify({ month: currentMonth(), builds: d.builds + 1 }, null, 2) + '\n',
+    'chore: build quota [skip ci]',
+  );
 }
 
 /* ---------------- status lookup ---------------- */

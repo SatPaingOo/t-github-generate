@@ -10,6 +10,8 @@ import {
   bumpRateLimit,
   checkEmailLimit,
   bumpEmailLimit,
+  getBuildQuota,
+  bumpBuildQuota,
   activeBuildCount,
   RATE_LIMIT_MAX,
 } from '@/lib/store';
@@ -58,6 +60,20 @@ export async function POST(req: NextRequest) {
           retryAfterMin: emailLimit.retryAfterMin,
           blockedPlatform: v.platform,
           message: `This email already generated a ${platformLabel} app today (1 build per platform per day). Try again in ~${emailLimit.retryAfterMin} min, or generate a ${otherPlatform === 'windows' ? 'Windows' : 'Android'} app instead.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    // 1d. monthly build quota — protects the owner's Actions minutes budget
+    //     (checked BEFORE consuming a code so no codes are wasted when full)
+    const quota = await getBuildQuota();
+    if (!quota.available) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'MONTHLY_QUOTA',
+          message: `TGen's monthly build budget (${quota.max} builds) for ${quota.month} is used up. New builds resume on the 1st of next month.`,
         },
         { status: 429 },
       );
@@ -132,9 +148,10 @@ export async function POST(req: NextRequest) {
       version: v.version,
     });
 
-    // 6. record this IP + email's generation (rate limits)
+    // 6. record this IP + email + monthly quota (rate limits)
     await bumpRateLimit(ip);
     await bumpEmailLimit(v.supportEmail, v.platform);
+    await bumpBuildQuota();
 
     return NextResponse.json({
       ok: true,

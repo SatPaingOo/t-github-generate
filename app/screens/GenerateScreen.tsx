@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PLATFORMS, PRESET_COLORS, STEPS } from '@/configs/constants';
 import type { GenerateResponse, Platform } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
@@ -74,6 +74,20 @@ function ErrorBanner({ data, onSwitchPlatform }: { data: GenerateResponse; onSwi
     );
   }
 
+  if (data.code === 'MONTHLY_QUOTA') {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="flex items-start gap-2.5">
+          <span className="text-base leading-5">📅</span>
+          <div>
+            <p className="font-semibold">Monthly build budget reached</p>
+            <p className="mt-0.5">{data.message}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // VALIDATION / INTERNAL / unknown
   return (
     <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -95,7 +109,19 @@ export function GenerateScreen() {
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorData, setErrorData] = useState<GenerateResponse | null>(null);
+  const [quota, setQuota] = useState<{ used: number; max: number; remaining: number; month: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch('/api/quota')
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) setQuota(d);
+      })
+      .catch(() => {
+        /* badge is optional — form still works */
+      });
+  }, []);
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -243,10 +269,28 @@ export function GenerateScreen() {
         <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
           {/* FORM */}
           <Card className="p-6 sm:p-8">
-            <h2 className="text-lg font-bold text-slate-900">Create your app</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              All fields below are applied to the generated app.
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Create your app</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  All fields below are applied to the generated app.
+                </p>
+              </div>
+              {quota ? (
+                <span
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
+                    quota.remaining > 0
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-red-200 bg-red-50 text-red-600'
+                  }`}
+                  title={`Monthly build budget — used ${quota.used} of ${quota.max} (${quota.month})`}
+                >
+                  {quota.remaining > 0
+                    ? `${quota.remaining} builds left this month`
+                    : 'Monthly budget used'}
+                </span>
+              ) : null}
+            </div>
 
             <form onSubmit={onSubmit} className="mt-6 space-y-5">
               {/* App name */}
@@ -455,18 +499,25 @@ export function GenerateScreen() {
                 </div>
               ) : null}
 
-              <Button type="submit" size="lg" disabled={loading} className="w-full">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading || quota?.remaining === 0}
+                className="w-full">
                 {loading ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                     Building… this takes ~15 min
                   </>
+                ) : quota?.remaining === 0 ? (
+                  <>📅 Monthly budget used — resume next month</>
                 ) : (
                   <>⚡ Generate my app</>
                 )}
               </Button>
               <p className="text-center text-xs text-slate-400">
-                Free demo — no account needed, just an access code.
+                Free demo — no account needed, just an access code. Limited build budget each
+                month (used {quota?.used ?? '—'}/{quota?.max ?? 120}).
               </p>
             </form>
           </Card>
