@@ -26,9 +26,9 @@ export const PRESET_COLORS = [
 ];
 
 export const STEPS = [
-  { n: '01', title: 'Fill the form', desc: 'Name, colors, logo, platform.' },
-  { n: '02', title: 'We build it', desc: 'GitHub Actions compiles your app.' },
-  { n: '03', title: 'Get the link', desc: 'Repo + download link by email.' },
+  { n: '01', title: 'Verify your email', desc: 'Enter your email — we send a 6-digit code.' },
+  { n: '02', title: 'We build it', desc: 'GitHub Actions compiles your branded app.' },
+  { n: '03', title: 'Get the download', desc: 'App file + link by email when ready.' },
 ];
 
 export const DEFAULT_PACKAGE_BY_PLATFORM: Record<Platform, string> = {

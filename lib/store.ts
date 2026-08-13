@@ -213,7 +213,7 @@ interface EmailLimitData {
  * must never be stored — hashing keeps per-email counting while staying
  * privacy-safe. Salt comes from EMAIL_HASH_SALT env (set in Vercel).
  */
-function emailKey(email: string): string {
+export function emailKey(email: string): string {
   const salt = process.env.EMAIL_HASH_SALT ?? 'tgen-demo';
   return createHash('sha256').update(`${salt}:${email.trim().toLowerCase()}`).digest('hex');
 }

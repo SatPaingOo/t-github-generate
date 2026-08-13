@@ -78,7 +78,7 @@ export default function StatusPage() {
           <h1 className="text-2xl font-bold text-slate-900">📦 Build Status</h1>
           <p className="mt-1 text-sm text-slate-500">
             Enter the <span className="font-semibold">email</span> and{' '}
-            <span className="font-semibold">access code</span> you used when generating — the
+            <span className="font-semibold">tracking code</span> you got when generating — the
             code is your private key to the build.
           </p>
         </header>
@@ -96,7 +96,7 @@ export default function StatusPage() {
             required
             value={code}
             onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="TGEN-XXXXXXXX (your access code)"
+            placeholder="TGEN-XXXXXXXX (your tracking code)"
             className={inputCls}
           />
           <button

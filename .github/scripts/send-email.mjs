@@ -36,6 +36,18 @@ function markDone(slug, platform) {
   fs.writeFileSync(p, lines.join('\n'), 'utf8');
 }
 
+/** Read this build's tracking code (col 6) from the generation row. */
+function trackingCode(slug, platform) {
+  const p = 'data/generations.csv';
+  if (!fs.existsSync(p)) return null;
+  const lines = fs.readFileSync(p, 'utf8').split('\n');
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(',');
+    if (cells[4] === slug && cells[5] === platform) return cells[6] || null;
+  }
+  return null;
+}
+
 const slug = process.env.SLUG;
 const platform = process.env.PLATFORM;
 const appName = process.env.APP_NAME;
@@ -54,6 +66,7 @@ const filename =
     : `${slug}-v${version}.apk`;
 const downloadUrl = `https://raw.githubusercontent.com/SatPaingOo/t-github-generate/main/public/exports/${platform}/${slug}/${filename}`;
 const folderUrl = `https://github.com/SatPaingOo/t-github-generate/tree/main/public/exports/${platform}/${slug}`;
+const trackCode = trackingCode(slug, platform);
 
 const platformLabel = platform === 'windows' ? 'Windows' : 'Android';
 
@@ -81,6 +94,11 @@ const htmlBody = `
       <p style="margin: 4px 0 0; opacity: 0.85;">Your ${platformLabel} app is ready!</p>
     </div>
     <div style="background: #fff; border-radius: 12px; padding: 20px; margin-top: 16px;">
+      ${trackCode ? `
+      <div style="background: #EEF2FF; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; text-align: center;">
+        <p style="margin: 0; font-size: 11px; color: #6366F1; font-weight: 600;">YOUR TRACKING CODE</p>
+        <p style="margin: 2px 0 0; font-size: 20px; font-weight: 800; letter-spacing: 3px; color: #4338CA;">${trackCode}</p>
+      </div>` : ''}
       <p style="margin: 0 0 12px; color: #334155;">Download your app file below:</p>
       <a href="${downloadUrl}" style="display: block; text-align: center; background: #6366F1; color: #fff; text-decoration: none; padding: 12px; border-radius: 10px; font-weight: 600;">
         ⬇ Download ${filename}

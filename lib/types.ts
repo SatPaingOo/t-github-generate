@@ -11,17 +11,30 @@ export interface GenerateRequest {
   logoBase64?: string; // data URL or raw base64 (PNG/JPEG) — optional
   supportEmail: string;
   platform: Platform;
-  code: string;
+  otp: string; // 6-digit code emailed to the user (proves email ownership)
   packageName?: string; // optional, default derived
   version?: string; // optional, default 1.0.0
 }
 
 export interface GenerateResponse {
   ok: boolean;
-  code?: 'INVALID_EMAIL' | 'EMAIL_LIMIT' | 'IP_LIMIT' | 'MONTHLY_QUOTA' | 'ACTIONS_BUDGET' | 'INVALID_CODE' | 'VALIDATION' | 'INTERNAL';
+  code?:
+    | 'INVALID_EMAIL'
+    | 'OTP_INVALID'
+    | 'OTP_EXPIRED'
+    | 'OTP_LIMIT'
+    | 'EMAIL_LIMIT'
+    | 'IP_LIMIT'
+    | 'MONTHLY_QUOTA'
+    | 'ACTIONS_BUDGET'
+    | 'VALIDATION'
+    | 'INTERNAL';
   retryAfterMin?: number;
+  retryAfterSec?: number;
+  attemptsLeft?: number;
   blockedPlatform?: string;
   queuePosition?: number;
+  trackingCode?: string;
   repoUrl?: string;
   downloadUrl?: string;
   repoName?: string;

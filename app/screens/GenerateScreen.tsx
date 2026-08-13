@@ -74,13 +74,27 @@ function ErrorBanner({ data, onSwitchPlatform }: { data: GenerateResponse; onSwi
     );
   }
 
-  if (data.code === 'INVALID_CODE') {
+  if (data.code === 'OTP_INVALID' || data.code === 'OTP_EXPIRED' || data.code === 'OTP_LIMIT') {
+    const title =
+      data.code === 'OTP_EXPIRED'
+        ? 'That code expired'
+        : data.code === 'OTP_LIMIT'
+          ? 'Too many wrong attempts'
+          : 'Wrong code';
     return (
       <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
         <span>🔑</span>
         <div>
-          <p className="font-semibold">Invalid access code</p>
-          <p className="mt-0.5">{data.message} Check that you copied the full code (e.g. <code className="rounded bg-red-100 px-1">TGEN-XXXXXXXX</code>).</p>
+          <p className="font-semibold">{title}</p>
+          <p className="mt-0.5">
+            {data.message}{' '}
+            <button
+              type="button"
+              onClick={() => onSwitchPlatform()} // reuses the reset handler below
+              className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-500">
+              Request a new code
+            </button>
+          </p>
         </div>
       </div>
     );
@@ -128,7 +142,10 @@ export function GenerateScreen() {
   const [secondaryColor, setSecondaryColor] = useState('#64748B');
   const [supportEmail, setSupportEmail] = useState('');
   const [platform, setPlatform] = useState<Platform>('android');
-  const [code, setCode] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpResendIn, setOtpResendIn] = useState(0);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoBase64, setLogoBase64] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -143,6 +160,7 @@ export function GenerateScreen() {
     minutes: { included: number; used: number; remaining: number } | null;
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     fetch('/api/quota')
@@ -153,7 +171,96 @@ export function GenerateScreen() {
       .catch(() => {
         /* badge is optional — form still works */
       });
+    return () => {
+      if (resendTimer.current) clearInterval(resendTimer.current);
+    };
   }, []);
+
+  useEffect(() => {
+    if (otpResendIn <= 0) {
+      if (resendTimer.current) {
+        clearInterval(resendTimer.current);
+        resendTimer.current = null;
+      }
+      return;
+    }
+    if (!resendTimer.current) {
+      resendTimer.current = setInterval(() => {
+        setOtpResendIn(s => (s > 0 ? s - 1 : 0));
+      }, 1000);
+    }
+  }, [otpResendIn]);
+
+  /** Step 1 — send the 6-digit code to the entered email. */
+  async function onSendCode(e: React.MouseEvent) {
+    e.preventDefault();
+    if (!supportEmail) {
+      setError('Enter your email first — we send the verification code there.');
+      return;
+    }
+    setOtpSending(true);
+    setError(null);
+    setErrorData(null);
+    try {
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: supportEmail }),
+      });
+      const data = (await res.json()) as GenerateResponse;
+      if (!res.ok || !data.ok) {
+        setErrorData(data);
+        setError(data.message || 'Could not send the code.');
+        return;
+      }
+      setOtpSent(true);
+      setOtp('');
+      setOtpResendIn(60);
+      setError("Code sent! Check your inbox (and spam) — it's valid for 10 minutes.");
+    } catch {
+      setError('Network error — please try again.');
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!otpSent) {
+      setError('Send the verification code to your email first.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setErrorData(null);
+    setResult(null);
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appName,
+          primaryColor,
+          secondaryColor,
+          supportEmail,
+          platform,
+          otp,
+          logoBase64,
+        }),
+      });
+      const data = (await res.json()) as GenerateResponse;
+      if (!res.ok || !data.ok) {
+        setErrorData(data);
+        setError(data.message || 'Generation failed.');
+      } else {
+        setResult(data);
+      }
+    } catch {
+      setError('Network error — please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -172,40 +279,6 @@ export function GenerateScreen() {
       setErrorData(null);
     };
     reader.readAsDataURL(file);
-  }
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setErrorData(null);
-    setResult(null);
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appName,
-          primaryColor,
-          secondaryColor,
-          supportEmail,
-          platform,
-          code,
-          logoBase64,
-        }),
-      });
-      const data = (await res.json()) as GenerateResponse;
-      if (!res.ok || !data.ok) {
-        setErrorData(data);
-        setError(data.message || 'Generation failed.');
-      } else {
-        setResult(data);
-      }
-    } catch {
-      setError('Network error — please try again.');
-    } finally {
-      setLoading(false);
-    }
   }
 
   return (
@@ -338,15 +411,43 @@ export function GenerateScreen() {
                 />
               </Field>
 
-              {/* Email */}
-              <Field label="Email address" hint="We email the repo + download link here.">
-                <TextInput
-                  type="email"
-                  value={supportEmail}
-                  onChange={e => setSupportEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                />
+              {/* Email + verification code */}
+              <Field label="Email address" hint="We send a verification code here, then the download link.">
+                <div className="flex gap-2">
+                  <TextInput
+                    type="email"
+                    value={supportEmail}
+                    onChange={e => {
+                      setSupportEmail(e.target.value);
+                      setOtpSent(false);
+                    }}
+                    placeholder="you@example.com"
+                    className="flex-1"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={onSendCode}
+                    disabled={otpSending || otpResendIn > 0}
+                    className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50">
+                    {otpSending ? 'Sending…' : otpResendIn > 0 ? `Resend in ${otpResendIn}s` : otpSent ? 'Resend code' : 'Send code'}
+                  </button>
+                </div>
+                {otpSent ? (
+                  <div className="mt-2 flex gap-2">
+                    <TextInput
+                      value={otp}
+                      onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="6-digit code"
+                      inputMode="numeric"
+                      pattern="\d{6}"
+                      maxLength={6}
+                      className="w-36 text-center text-lg font-bold tracking-[0.4em]"
+                      required
+                    />
+                    <span className="self-center text-xs text-slate-400">Check your inbox (and spam)</span>
+                  </div>
+                ) : null}
               </Field>
 
               {/* Brand colors */}
@@ -478,23 +579,13 @@ export function GenerateScreen() {
                 </div>
               </Field>
 
-              {/* Code */}
-              <Field label="Access code" hint="One code = one generated app.">
-                <TextInput
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                  placeholder="DEMO-0002"
-                  required
-                />
-              </Field>
-
               {/* Status */}
               {errorData ? (
                 <ErrorBanner
                   data={errorData}
                   onSwitchPlatform={() => {
-                    if (errorData.blockedPlatform === 'windows') setPlatform('android');
-                    else if (errorData.blockedPlatform === 'android') setPlatform('windows');
+                    setOtpSent(false);
+                    setOtp('');
                     setError(null);
                     setErrorData(null);
                   }}
@@ -507,6 +598,12 @@ export function GenerateScreen() {
               {result ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                   <p className="font-semibold">🎉 {result.message}</p>
+                  {result.trackingCode ? (
+                    <p className="mt-1.5 rounded-lg bg-emerald-100 px-3 py-2 text-xs">
+                      🔑 Your tracking code: <span className="font-mono font-bold text-emerald-900">{result.trackingCode}</span>
+                      <span className="text-emerald-700"> — keep it with your email to check the build.</span>
+                    </p>
+                  ) : null}
                   {result.downloadUrl ? (
                     <a
                       href={result.downloadUrl}
@@ -526,7 +623,7 @@ export function GenerateScreen() {
                     </a>
                   ) : null}
                   <a
-                    href={`/status?email=${encodeURIComponent(supportEmail)}&code=${encodeURIComponent(code)}`}
+                    href={`/status?email=${encodeURIComponent(supportEmail)}&code=${encodeURIComponent(result.trackingCode ?? '')}`}
                     className="mt-2 inline-block rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-200">
                     📦 Track build status
                   </a>
@@ -536,7 +633,7 @@ export function GenerateScreen() {
               <Button
                 type="submit"
                 size="lg"
-                disabled={loading || budget?.available === false}
+                disabled={loading || budget?.available === false || !otpSent}
                 className="w-full">
                 {loading ? (
                   <>
@@ -549,13 +646,15 @@ export function GenerateScreen() {
                   ) : (
                     <>📅 Monthly budget used — resume next month</>
                   )
+                ) : !otpSent ? (
+                  <>📧 Verify your email to start the build</>
                 ) : (
                   <>⚡ Generate my app</>
                 )}
               </Button>
               <p className="text-center text-xs text-slate-400">
-                Free demo — no account needed, just an access code. Limited build budget each
-                month (used {budget?.builds.used ?? '—'}/{budget?.builds.max ?? 120}
+                Free demo — verify your email, then we build on GitHub Actions. Limited build
+                budget each month (used {budget?.builds.used ?? '—'}/{budget?.builds.max ?? 120}
                 {budget?.minutes ? ` · ${budget.minutes.remaining} min left` : ''}).
               </p>
             </form>

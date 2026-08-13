@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRequest, ValidationError, maskEmail } from '@/lib/sanitize';
 import { emailDomainAcceptsMail } from '@/lib/email';
+import { verifyOtp, generateTrackingCode } from '@/lib/otp';
 import {
-  consumeCode,
   appendGeneration,
   idGen,
-  listCodes,
-  saveCodes,
   checkRateLimit,
   bumpRateLimit,
   checkEmailLimit,
@@ -106,14 +104,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. consume the code (single-use)
-    const code = await consumeCode(v.code);
-    if (!code) {
+    // 2. verify the emailed code — the ownership gate before anything is
+    //    spent. A fake/typo'd email can't get past this (no code arrives),
+    //    so no build is ever burned on an address the user doesn't have.
+    const otpCheck = await verifyOtp(v.supportEmail, v.otp);
+    if (!otpCheck.ok) {
+      const message =
+        otpCheck.code === 'OTP_EXPIRED'
+          ? 'That code has expired — request a new one.'
+          : otpCheck.code === 'OTP_LIMIT'
+            ? 'Too many wrong attempts — request a new code.'
+            : `Wrong code${typeof otpCheck.attemptsLeft === 'number' ? ` — ${otpCheck.attemptsLeft} attempt${otpCheck.attemptsLeft === 1 ? '' : 's'} left` : ''}. Check the 6-digit code we emailed you.`;
       return NextResponse.json(
-        { ok: false, code: 'INVALID_CODE', message: 'Invalid or already-used code.' },
+        { ok: false, code: otpCheck.code, attemptsLeft: otpCheck.attemptsLeft, message },
         { status: 400 },
       );
     }
+
+    // the user proved they own the email — mint a tracking code for the
+    // status page (email + tracking code), and start the build
+    const trackingCode = generateTrackingCode();
 
     try {
       // 3. optional: stage the logo so the export workflow can use it
@@ -134,13 +144,6 @@ export async function POST(req: NextRequest) {
         version: v.version,
       });
     } catch (err) {
-      // refund the code so the user can retry
-      const codes = await listCodes();
-      const rec = codes.find(c => c.code === v.code);
-      if (rec) {
-        rec.used = Math.max(0, rec.used - 1);
-        await saveCodes(codes);
-      }
       console.error('generate failed:', err);
       return NextResponse.json(
         { ok: false, code: 'INTERNAL', message: `Generation failed: ${err instanceof Error ? err.message : String(err)}` },
@@ -167,7 +170,7 @@ export async function POST(req: NextRequest) {
       appName: v.appName,
       slug: v.slug,
       platform: v.platform,
-      code: v.code,
+      code: trackingCode,
       repoUrl: exportDirUrl(v.platform, v.slug),
       repoName: `public/exports/${v.platform}/${v.slug}`,
       status: queued ? 'queued' : 'building',
@@ -182,6 +185,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
+      trackingCode,
       repoUrl: exportDirUrl(v.platform, v.slug),
       downloadUrl: exportRawUrl(v.platform, v.slug, filename),
       queuePosition,

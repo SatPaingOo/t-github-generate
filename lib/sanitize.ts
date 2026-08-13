@@ -95,6 +95,14 @@ export function decodeLogo(logoBase64: string | undefined): Buffer | null {
   return buf;
 }
 
+/** The 6-digit verification code emailed to the user. */
+export function sanitizeOtp(otp: string): string {
+  if (typeof otp !== 'string' || !/^\d{6}$/.test(otp.trim())) {
+    throw new ValidationError('Enter the 6-digit code we emailed you.');
+  }
+  return otp.trim();
+}
+
 /** Full validation + normalization of a generate request. */
 export function validateRequest(raw: GenerateRequest) {
   const appName = sanitizeAppName(raw.appName);
@@ -108,7 +116,7 @@ export function validateRequest(raw: GenerateRequest) {
     secondaryColor: sanitizeColor(raw.secondaryColor || '#64748B', 'Secondary color'),
     supportEmail: sanitizeEmail(raw.supportEmail),
     platform: sanitizePlatform(raw.platform),
-    code: raw.code.trim(),
+    otp: sanitizeOtp(raw.otp),
     packageName: sanitizePackageName(raw.packageName, slug),
     version: sanitizeVersion(raw.version),
     logoBytes: decodeLogo(raw.logoBase64),
