@@ -8,6 +8,9 @@ import {
   saveCodes,
   checkRateLimit,
   bumpRateLimit,
+  checkEmailLimit,
+  bumpEmailLimit,
+  activeBuildCount,
   RATE_LIMIT_MAX,
 } from '@/lib/store';
 import { exportDirUrl, exportRawUrl, triggerExportBuild, uploadExportLogo } from '@/lib/github';
@@ -36,6 +39,18 @@ export async function POST(req: NextRequest) {
         {
           ok: false,
           message: `Too many requests from this IP (max ${RATE_LIMIT_MAX} per hour). Try again in ~${limit.retryAfterMin} min.`,
+        },
+        { status: 429 },
+      );
+    }
+
+    // 1c. per-email daily limit — one build per platform per 24h
+    const emailLimit = await checkEmailLimit(v.supportEmail, v.platform);
+    if (!emailLimit.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: `This email already generated a ${v.platform === 'windows' ? 'Windows' : 'Android'} app today. Try again in ~${emailLimit.retryAfterMin} min.`,
         },
         { status: 429 },
       );
@@ -83,9 +98,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. log the generation (status = building; artifact lands in public/exports)
-    //    email is stored MASKED — the real email only flows to the workflow
-    //    (via dispatch payload) for the notifier, never into the public CSV.
+    // 5. log the generation — status is "queued" when another build is
+    //    active (GitHub Actions serializes them via concurrency), else
+    //    "building". email is stored MASKED — the real email only flows to
+    //    the workflow (via dispatch payload) for the notifier, never into
+    //    the public CSV.
+    const activeCount = await activeBuildCount();
+    const queued = activeCount > 0;
+    const queuePosition = activeCount + 1;
     const filename =
       v.platform === 'windows'
         ? `${v.slug}-Setup-v${v.version}.exe`
@@ -100,20 +120,23 @@ export async function POST(req: NextRequest) {
       code: v.code,
       repoUrl: exportDirUrl(v.platform, v.slug),
       repoName: `public/exports/${v.platform}/${v.slug}`,
-      status: 'building',
+      status: queued ? 'queued' : 'building',
       updatedAt: new Date().toISOString(),
       version: v.version,
     });
 
-    // 6. record this IP's generation (rate limit)
+    // 6. record this IP + email's generation (rate limits)
     await bumpRateLimit(ip);
+    await bumpEmailLimit(v.supportEmail, v.platform);
 
     return NextResponse.json({
       ok: true,
       repoUrl: exportDirUrl(v.platform, v.slug),
       downloadUrl: exportRawUrl(v.platform, v.slug, filename),
-      message:
-        'Build started! Your app file will appear in ~10-15 min — check the link below.',
+      queuePosition,
+      message: queued
+        ? `You're #${queuePosition} in the build queue — the current build finishes first, then yours starts (~10-15 min after it begins).`
+        : 'Build started! Your app file will appear in ~10-15 min — check the link below.',
     });
   } catch (err) {
     if (err instanceof ValidationError) {

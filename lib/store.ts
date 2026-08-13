@@ -11,6 +11,7 @@
  * NOTE: read-modify-write has no atomic locking — fine for a demo scale.
  */
 
+import { createHash } from 'crypto';
 import type { CodeRecord, GenerationRecord, GenerationStatus } from './types';
 import { readRepoFile, writeRepoFile } from './github';
 import { maskEmail } from './sanitize';
@@ -18,6 +19,7 @@ import { maskEmail } from './sanitize';
 const CODES_PATH = 'data/codes.json';
 const CSV_PATH = 'data/generations.csv';
 const RATE_LIMIT_PATH = 'data/rate_limits.json';
+const EMAIL_LIMIT_PATH = 'data/email_limits.json';
 
 const CSV_HEADER =
   'id,createdAt,email,appName,slug,platform,code,repoUrl,repoName,status,releaseUrl,updatedAt,version\n';
@@ -192,6 +194,92 @@ export async function bumpRateLimit(ip: string): Promise<void> {
     JSON.stringify(data, null, 2) + '\n',
     'chore: rate limit [skip ci]',
   );
+}
+
+/* ---------------- email daily limit (privacy-safe) ---------------- */
+
+/** Per-email cap: one build per platform per 24h (protects Actions minutes). */
+export const EMAIL_DAILY_MAX = 1;
+export const EMAIL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+interface EmailLimitData {
+  [hash: string]: Record<string, number[]>; // platform -> recent timestamps
+}
+
+/**
+ * Key for a real email WITHOUT persisting it: sha256(salt:email). The masked
+ * form can't be used for limits (it collides across users) and the raw form
+ * must never be stored — hashing keeps per-email counting while staying
+ * privacy-safe. Salt comes from EMAIL_HASH_SALT env (set in Vercel).
+ */
+function emailKey(email: string): string {
+  const salt = process.env.EMAIL_HASH_SALT ?? 'tgen-demo';
+  return createHash('sha256').update(`${salt}:${email.trim().toLowerCase()}`).digest('hex');
+}
+
+async function readEmailLimits(): Promise<EmailLimitData> {
+  const file = await readRepoFile(EMAIL_LIMIT_PATH);
+  if (!file) return {};
+  try {
+    return JSON.parse(file.content) as EmailLimitData;
+  } catch {
+    return {};
+  }
+}
+
+export async function checkEmailLimit(
+  email: string,
+  platform: string,
+): Promise<{ allowed: boolean; remaining: number; retryAfterMin: number }> {
+  const data = await readEmailLimits();
+  const now = Date.now();
+  const times = ((data[emailKey(email)] || {})[platform] || []).filter(
+    t => now - t < EMAIL_WINDOW_MS,
+  );
+  if (times.length >= EMAIL_DAILY_MAX) {
+    const oldest = Math.min(...times);
+    const retryAfterMin = Math.max(1, Math.ceil((EMAIL_WINDOW_MS - (now - oldest)) / 60000));
+    return { allowed: false, remaining: 0, retryAfterMin };
+  }
+  return { allowed: true, remaining: EMAIL_DAILY_MAX - times.length, retryAfterMin: 0 };
+}
+
+/** Record a successful generation for `email` on `platform`. */
+export async function bumpEmailLimit(email: string, platform: string): Promise<void> {
+  const data = await readEmailLimits();
+  const now = Date.now();
+  const key = emailKey(email);
+  data[key] = data[key] || {};
+  data[key][platform] = (data[key][platform] || []).filter(t => now - t < EMAIL_WINDOW_MS);
+  data[key][platform].push(now);
+  for (const k of Object.keys(data)) {
+    for (const p of Object.keys(data[k])) {
+      if (data[k][p].length === 0) delete data[k][p];
+    }
+    if (Object.keys(data[k]).length === 0) delete data[k];
+  }
+  await writeRepoFile(
+    EMAIL_LIMIT_PATH,
+    JSON.stringify(data, null, 2) + '\n',
+    'chore: email limit [skip ci]',
+  );
+}
+
+/* ---------------- build queue ---------------- */
+
+/** How many builds are currently active (building or queued). */
+export async function activeBuildCount(): Promise<number> {
+  const all = await listGenerations();
+  return all.filter(g => g.status === 'building' || g.status === 'queued').length;
+}
+
+/** 1-based queue position: actives created strictly before `createdAt` + 1. */
+export async function queuePositionOf(createdAt: string): Promise<number> {
+  const all = await listGenerations();
+  const before = all.filter(
+    g => (g.status === 'building' || g.status === 'queued') && g.createdAt < createdAt,
+  );
+  return before.length + 1;
 }
 
 /* ---------------- status lookup ---------------- */

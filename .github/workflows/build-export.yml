@@ -63,6 +63,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # The real email is only needed by the SMTP notifier. Redact it from
+      # public workflow logs so it never leaks (the CSV already stores masked).
+      - name: Mask sensitive inputs
+        shell: bash
+        run: |
+          echo "::add-mask::${{ github.event.inputs.supportEmail }}"
+
       - name: Clone template repo
         shell: bash
         run: |

@@ -31,7 +31,7 @@ export interface CodeRecord {
   createdAt: string;
 }
 
-export type GenerationStatus = 'building' | 'done' | 'failed';
+export type GenerationStatus = 'queued' | 'building' | 'done' | 'failed';
 
 export interface GenerationRecord {
   id: string;

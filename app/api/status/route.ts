@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGenerationByEmailAndCode } from '@/lib/store';
+import { getGenerationByEmailAndCode, queuePositionOf } from '@/lib/store';
 import { exportRawUrl, exportDirUrl } from '@/lib/github';
 
 export const runtime = 'nodejs';
@@ -36,6 +36,11 @@ export async function GET(req: NextRequest) {
       ? `${gen.slug}-Setup-v${version}.exe`
       : `${gen.slug}-v${version}.apk`;
 
+  const queuePosition =
+    gen.status === 'queued' || gen.status === 'building'
+      ? await queuePositionOf(gen.createdAt)
+      : undefined;
+
   return NextResponse.json({
     ok: true,
     build: {
@@ -44,6 +49,7 @@ export async function GET(req: NextRequest) {
       slug: gen.slug,
       platform: gen.platform,
       status: gen.status,
+      queuePosition,
       createdAt: gen.createdAt,
       updatedAt: gen.updatedAt,
       downloadUrl: exportRawUrl(gen.platform, gen.slug, filename),

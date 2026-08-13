@@ -7,7 +7,8 @@ interface Build {
   appName: string;
   slug: string;
   platform: string;
-  status: 'building' | 'done' | 'failed';
+  status: 'queued' | 'building' | 'done' | 'failed';
+  queuePosition?: number;
   createdAt: string;
   updatedAt: string;
   downloadUrl: string;
@@ -15,6 +16,7 @@ interface Build {
 }
 
 const STATUS_META: Record<Build['status'], { label: string; cls: string; dot: string }> = {
+  queued: { label: 'Queued', cls: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' },
   building: { label: 'Building…', cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500 animate-pulse' },
   done: { label: 'Ready', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   failed: { label: 'Failed', cls: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' },
@@ -126,6 +128,13 @@ export default function StatusPage() {
                 {STATUS_META[build.status].label}
               </span>
             </div>
+            {build.status === 'queued' || build.status === 'building' ? (
+              <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                {build.status === 'queued'
+                  ? `You're #${build.queuePosition ?? '—'} in the build queue — builds run one at a time, so yours starts after the current one finishes (~10-15 min after it begins).`
+                  : 'Build in progress — your app file appears here in ~10-15 min. You will also get an email when it is ready.'}
+              </p>
+            ) : null}
             <div className="mt-3 flex gap-2">
               {build.status === 'done' ? (
                 <a
