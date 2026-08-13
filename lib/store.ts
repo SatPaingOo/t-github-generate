@@ -13,7 +13,7 @@
 
 import { createHash } from 'crypto';
 import type { CodeRecord, GenerationRecord, GenerationStatus } from './types';
-import { readRepoFile, writeRepoFile } from './github';
+import { readRepoFile, writeRepoFile, getActionsBilling } from './github';
 import { maskEmail } from './sanitize';
 
 const CODES_PATH = 'data/codes.json';
@@ -339,6 +339,42 @@ export async function bumpBuildQuota(): Promise<void> {
     JSON.stringify({ month: currentMonth(), builds: d.builds + 1 }, null, 2) + '\n',
     'chore: build quota [skip ci]',
   );
+}
+
+/** Minimum remaining account Actions minutes to allow one more build. */
+export const MIN_BUILD_MINUTES = 30;
+
+export interface BuildBudget {
+  available: boolean;
+  reason: 'MONTHLY_QUOTA' | 'ACTIONS_BUDGET' | null;
+  month: string;
+  builds: { used: number; max: number; remaining: number };
+  minutes: { included: number; used: number; remaining: number } | null;
+}
+
+/**
+ * Combined budget check:
+ *  1. the site's own monthly build cap (always enforced), and
+ *  2. the owner's real remaining Actions minutes from GitHub's billing API —
+ *     only when GITHUB_BILLING_TOKEN is set (public repo runs are free, so
+ *     this matters mostly if the repo is private or other private repos burn
+ *     the account's 2000 min). Falls back to the cap alone when absent.
+ */
+export async function checkBuildBudget(): Promise<BuildBudget> {
+  const q = await getBuildQuota();
+  const builds = { used: q.used, max: q.max, remaining: q.remaining };
+  const billing = await getActionsBilling();
+  const minutes = billing
+    ? { included: billing.includedMinutes, used: billing.usedMinutes, remaining: billing.remainingMinutes }
+    : null;
+
+  if (!q.available) {
+    return { available: false, reason: 'MONTHLY_QUOTA', month: q.month, builds, minutes };
+  }
+  if (minutes && minutes.remaining < MIN_BUILD_MINUTES) {
+    return { available: false, reason: 'ACTIONS_BUDGET', month: q.month, builds, minutes };
+  }
+  return { available: true, reason: null, month: q.month, builds, minutes };
 }
 
 /* ---------------- status lookup ---------------- */

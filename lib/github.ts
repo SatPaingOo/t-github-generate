@@ -135,3 +135,47 @@ export async function uploadExportLogo(slug: string, logoBytes: Buffer): Promise
 
   await gh.git.updateRef({ owner, repo, ref: 'heads/main', sha: commit.data.sha });
 }
+
+/**
+ * Real Actions minutes used by the OWNER's whole account (current billing
+ * cycle) from GitHub's billing API. Free-tier accounts include 2000 min —
+ * used only by PRIVATE repos (public repo runs are free, so builds here
+ * don't normally consume it). Requires GITHUB_BILLING_TOKEN (a classic PAT
+ * from the owner account — fine-grained repo tokens can't read billing).
+ * Returns null when the token isn't configured or the call fails, so the
+ * website falls back to its own build counter instead of blocking.
+ */
+export interface ActionsBilling {
+  includedMinutes: number;
+  usedMinutes: number;
+  remainingMinutes: number;
+}
+
+export async function getActionsBilling(): Promise<ActionsBilling | null> {
+  const token = process.env.GITHUB_BILLING_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch(
+      `https://api.github.com/users/${GITHUB_OWNER}/settings/billing/actions`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+        cache: 'no-store',
+      },
+    );
+    if (!res.ok) return null;
+    const d = (await res.json()) as { included_minutes?: number; total_minutes_used?: number };
+    const included = d.included_minutes ?? 0;
+    const used = d.total_minutes_used ?? 0;
+    return {
+      includedMinutes: included,
+      usedMinutes: used,
+      remainingMinutes: Math.max(0, included - used),
+    };
+  } catch {
+    return null; // fail open — the build counter still protects the budget
+  }
+}

@@ -10,8 +10,8 @@ import {
   bumpRateLimit,
   checkEmailLimit,
   bumpEmailLimit,
-  getBuildQuota,
   bumpBuildQuota,
+  checkBuildBudget,
   activeBuildCount,
   RATE_LIMIT_MAX,
 } from '@/lib/store';
@@ -65,15 +65,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1d. monthly build quota — protects the owner's Actions minutes budget
-    //     (checked BEFORE consuming a code so no codes are wasted when full)
-    const quota = await getBuildQuota();
-    if (!quota.available) {
+    // 1d. combined build budget — the site's monthly cap + (when configured)
+    //     the owner's real remaining Actions minutes from GitHub billing.
+    //     Checked BEFORE consuming a code so no codes are wasted when full.
+    const budget = await checkBuildBudget();
+    if (!budget.available) {
+      if (budget.reason === 'ACTIONS_BUDGET' && budget.minutes) {
+        return NextResponse.json(
+          {
+            ok: false,
+            code: 'ACTIONS_BUDGET',
+            message: `The account's GitHub Actions minutes are nearly used up (${budget.minutes.remaining} min left of ${budget.minutes.included}). Generation is paused until the next billing cycle — please try again later.`,
+          },
+          { status: 429 },
+        );
+      }
       return NextResponse.json(
         {
           ok: false,
           code: 'MONTHLY_QUOTA',
-          message: `TGen's monthly build budget (${quota.max} builds) for ${quota.month} is used up. New builds resume on the 1st of next month.`,
+          message: `TGen's monthly build budget (${budget.builds.max} builds) for ${budget.month} is used up. New builds resume on the 1st of next month.`,
         },
         { status: 429 },
       );

@@ -74,6 +74,20 @@ function ErrorBanner({ data, onSwitchPlatform }: { data: GenerateResponse; onSwi
     );
   }
 
+  if (data.code === 'ACTIONS_BUDGET') {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="flex items-start gap-2.5">
+          <span className="text-base leading-5">⛽</span>
+          <div>
+            <p className="font-semibold">Builds paused — Actions minutes low</p>
+            <p className="mt-0.5">{data.message}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (data.code === 'MONTHLY_QUOTA') {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -109,14 +123,20 @@ export function GenerateScreen() {
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorData, setErrorData] = useState<GenerateResponse | null>(null);
-  const [quota, setQuota] = useState<{ used: number; max: number; remaining: number; month: string } | null>(null);
+  const [budget, setBudget] = useState<{
+    available: boolean;
+    reason: 'MONTHLY_QUOTA' | 'ACTIONS_BUDGET' | null;
+    month: string;
+    builds: { used: number; max: number; remaining: number };
+    minutes: { included: number; used: number; remaining: number } | null;
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/quota')
       .then(r => r.json())
       .then(d => {
-        if (d.ok) setQuota(d);
+        if (d.ok) setBudget(d);
       })
       .catch(() => {
         /* badge is optional — form still works */
@@ -276,18 +296,20 @@ export function GenerateScreen() {
                   All fields below are applied to the generated app.
                 </p>
               </div>
-              {quota ? (
+              {budget ? (
                 <span
                   className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-                    quota.remaining > 0
+                    budget.available
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : 'border-red-200 bg-red-50 text-red-600'
                   }`}
-                  title={`Monthly build budget — used ${quota.used} of ${quota.max} (${quota.month})`}
+                  title={`Build budget ${budget.month} — used ${budget.builds.used} of ${budget.builds.max} builds`}
                 >
-                  {quota.remaining > 0
-                    ? `${quota.remaining} builds left this month`
-                    : 'Monthly budget used'}
+                  {budget.available
+                    ? `${budget.builds.remaining} builds left${budget.minutes ? ` · ${budget.minutes.remaining} min budget` : ''}`
+                    : budget.reason === 'ACTIONS_BUDGET'
+                      ? 'Builds paused (Actions minutes low)'
+                      : 'Monthly budget used'}
                 </span>
               ) : null}
             </div>
@@ -502,22 +524,27 @@ export function GenerateScreen() {
               <Button
                 type="submit"
                 size="lg"
-                disabled={loading || quota?.remaining === 0}
+                disabled={loading || budget?.available === false}
                 className="w-full">
                 {loading ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                     Building… this takes ~15 min
                   </>
-                ) : quota?.remaining === 0 ? (
-                  <>📅 Monthly budget used — resume next month</>
+                ) : budget?.available === false ? (
+                  budget.reason === 'ACTIONS_BUDGET' ? (
+                    <>⛽ Builds paused — minutes low</>
+                  ) : (
+                    <>📅 Monthly budget used — resume next month</>
+                  )
                 ) : (
                   <>⚡ Generate my app</>
                 )}
               </Button>
               <p className="text-center text-xs text-slate-400">
                 Free demo — no account needed, just an access code. Limited build budget each
-                month (used {quota?.used ?? '—'}/{quota?.max ?? 120}).
+                month (used {budget?.builds.used ?? '—'}/{budget?.builds.max ?? 120}
+                {budget?.minutes ? ` · ${budget.minutes.remaining} min left` : ''}).
               </p>
             </form>
           </Card>
