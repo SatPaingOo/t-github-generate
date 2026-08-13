@@ -1,0 +1,11 @@
+{
+  "appName": "Warning App",
+  "slug": "warning-app",
+  "platform": "android",
+  "theme": "light",
+  "primaryColor": "#3b82f6",
+  "secondaryColor": "#64748a",
+  "version": "1.0.0",
+  "file": "warning-app-v1.0.0.apk",
+  "builtAt": "2026-08-13T08:23:47Z"
+}
