@@ -18,6 +18,10 @@ export interface GenerateRequest {
 
 export interface GenerateResponse {
   ok: boolean;
+  code?: 'EMAIL_LIMIT' | 'IP_LIMIT' | 'INVALID_CODE' | 'VALIDATION' | 'INTERNAL';
+  retryAfterMin?: number;
+  blockedPlatform?: string;
+  queuePosition?: number;
   repoUrl?: string;
   downloadUrl?: string;
   repoName?: string;

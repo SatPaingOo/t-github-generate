@@ -10,6 +10,78 @@ import { Badge } from '@/components/ui/Badge';
 import { AppPreview } from '@/components/feature/AppPreview';
 import { DefaultApps } from '@/components/feature/DefaultApps';
 
+/** Rich, type-aware error banner so rate limits are clear, not confusing. */
+function ErrorBanner({ data, onSwitchPlatform }: { data: GenerateResponse; onSwitchPlatform: () => void }) {
+  const platformLabel =
+    data.blockedPlatform === 'windows' ? 'Windows' : data.blockedPlatform === 'android' ? 'Android' : 'this platform';
+  const otherLabel = data.blockedPlatform === 'windows' ? 'Android' : data.blockedPlatform === 'android' ? 'Windows' : 'another platform';
+
+  if (data.code === 'EMAIL_LIMIT') {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="flex items-start gap-2.5">
+          <span className="text-base leading-5">⏰</span>
+          <div>
+            <p className="font-semibold">Daily limit reached for this email</p>
+            <p className="mt-0.5 text-amber-800">
+              {data.message}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onSwitchPlatform}
+                className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">
+                Switch to {otherLabel}
+              </button>
+              <a
+                href="/status"
+                className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                Check existing builds
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.code === 'IP_LIMIT') {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="flex items-start gap-2.5">
+          <span className="text-base leading-5">🛡️</span>
+          <div>
+            <p className="font-semibold">Too many builds from your network</p>
+            <p className="mt-0.5 text-amber-800">{data.message}</p>
+            {typeof data.retryAfterMin === 'number' ? (
+              <p className="mt-1 text-xs text-amber-600">Try again in about {data.retryAfterMin} minute{data.retryAfterMin > 1 ? 's' : ''}.</p>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.code === 'INVALID_CODE') {
+    return (
+      <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <span>🔑</span>
+        <div>
+          <p className="font-semibold">Invalid access code</p>
+          <p className="mt-0.5">{data.message} Check that you copied the full code (e.g. <code className="rounded bg-red-100 px-1">TGEN-XXXXXXXX</code>).</p>
+        </div>
+      </div>
+    );
+  }
+
+  // VALIDATION / INTERNAL / unknown
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      <span>⚠️</span> {data.message}
+    </div>
+  );
+}
+
 export function GenerateScreen() {
   const [appName, setAppName] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#6366F1');
@@ -22,6 +94,7 @@ export function GenerateScreen() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorData, setErrorData] = useState<GenerateResponse | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -29,6 +102,7 @@ export function GenerateScreen() {
     if (!file) return;
     if (!/^image\/(png|jpe?g)$/.test(file.type)) {
       setError('Logo must be a PNG or JPEG image.');
+      setErrorData(null);
       return;
     }
     const reader = new FileReader();
@@ -37,6 +111,7 @@ export function GenerateScreen() {
       setLogoPreview(dataUrl);
       setLogoBase64(dataUrl);
       setError(null);
+      setErrorData(null);
     };
     reader.readAsDataURL(file);
   }
@@ -45,6 +120,7 @@ export function GenerateScreen() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorData(null);
     setResult(null);
     try {
       const res = await fetch('/api/generate', {
@@ -61,8 +137,12 @@ export function GenerateScreen() {
         }),
       });
       const data = (await res.json()) as GenerateResponse;
-      if (!res.ok || !data.ok) setError(data.message || 'Generation failed.');
-      else setResult(data);
+      if (!res.ok || !data.ok) {
+        setErrorData(data);
+        setError(data.message || 'Generation failed.');
+      } else {
+        setResult(data);
+      }
     } catch {
       setError('Network error — please try again.');
     } finally {
@@ -331,7 +411,17 @@ export function GenerateScreen() {
               </Field>
 
               {/* Status */}
-              {error ? (
+              {errorData ? (
+                <ErrorBanner
+                  data={errorData}
+                  onSwitchPlatform={() => {
+                    if (errorData.blockedPlatform === 'windows') setPlatform('android');
+                    else if (errorData.blockedPlatform === 'android') setPlatform('windows');
+                    setError(null);
+                    setErrorData(null);
+                  }}
+                />
+              ) : error ? (
                 <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   <span>⚠️</span> {error}
                 </div>

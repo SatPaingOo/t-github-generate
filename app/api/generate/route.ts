@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
+          code: 'IP_LIMIT',
+          retryAfterMin: limit.retryAfterMin,
           message: `Too many requests from this IP (max ${RATE_LIMIT_MAX} per hour). Try again in ~${limit.retryAfterMin} min.`,
         },
         { status: 429 },
@@ -47,10 +49,15 @@ export async function POST(req: NextRequest) {
     // 1c. per-email daily limit — one build per platform per 24h
     const emailLimit = await checkEmailLimit(v.supportEmail, v.platform);
     if (!emailLimit.allowed) {
+      const platformLabel = v.platform === 'windows' ? 'Windows' : 'Android';
+      const otherPlatform = v.platform === 'windows' ? 'android' : 'windows';
       return NextResponse.json(
         {
           ok: false,
-          message: `This email already generated a ${v.platform === 'windows' ? 'Windows' : 'Android'} app today. Try again in ~${emailLimit.retryAfterMin} min.`,
+          code: 'EMAIL_LIMIT',
+          retryAfterMin: emailLimit.retryAfterMin,
+          blockedPlatform: v.platform,
+          message: `This email already generated a ${platformLabel} app today (1 build per platform per day). Try again in ~${emailLimit.retryAfterMin} min, or generate a ${otherPlatform === 'windows' ? 'Windows' : 'Android'} app instead.`,
         },
         { status: 429 },
       );
@@ -60,7 +67,7 @@ export async function POST(req: NextRequest) {
     const code = await consumeCode(v.code);
     if (!code) {
       return NextResponse.json(
-        { ok: false, message: 'Invalid or already-used code.' },
+        { ok: false, code: 'INVALID_CODE', message: 'Invalid or already-used code.' },
         { status: 400 },
       );
     }
@@ -93,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
       console.error('generate failed:', err);
       return NextResponse.json(
-        { ok: false, message: `Generation failed: ${err instanceof Error ? err.message : String(err)}` },
+        { ok: false, code: 'INTERNAL', message: `Generation failed: ${err instanceof Error ? err.message : String(err)}` },
         { status: 500 },
       );
     }
@@ -140,11 +147,14 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     if (err instanceof ValidationError) {
-      return NextResponse.json({ ok: false, message: err.message }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, code: 'VALIDATION', message: err.message },
+        { status: 400 },
+      );
     }
     console.error('unexpected:', err);
     return NextResponse.json(
-      { ok: false, message: 'Something went wrong. Please try again.' },
+      { ok: false, code: 'INTERNAL', message: 'Something went wrong. Please try again.' },
       { status: 500 },
     );
   }
