@@ -268,18 +268,31 @@ export async function bumpEmailLimit(email: string, platform: string): Promise<v
 
 /* ---------------- build queue ---------------- */
 
-/** How many builds are currently active (building or queued). */
+/**
+ * A generation older than this while still "active" is treated as stale.
+ * The workflow marks rows done when it finishes; only an email failure used
+ * to leave them stuck as building forever — those must never count against
+ * the real queue (they'd inflate the position for everyone behind them).
+ */
+const ACTIVE_TTL_MS = 4 * 60 * 60 * 1000;
+
+function isActiveNow(g: GenerationRecord): boolean {
+  return (
+    (g.status === 'building' || g.status === 'queued') &&
+    Date.now() - new Date(g.createdAt).getTime() < ACTIVE_TTL_MS
+  );
+}
+
+/** How many builds are currently active (building or queued, not stale). */
 export async function activeBuildCount(): Promise<number> {
   const all = await listGenerations();
-  return all.filter(g => g.status === 'building' || g.status === 'queued').length;
+  return all.filter(isActiveNow).length;
 }
 
 /** 1-based queue position: actives created strictly before `createdAt` + 1. */
 export async function queuePositionOf(createdAt: string): Promise<number> {
   const all = await listGenerations();
-  const before = all.filter(
-    g => (g.status === 'building' || g.status === 'queued') && g.createdAt < createdAt,
-  );
+  const before = all.filter(g => isActiveNow(g) && g.createdAt < createdAt);
   return before.length + 1;
 }
 

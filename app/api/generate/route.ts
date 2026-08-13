@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateRequest, ValidationError, maskEmail } from '@/lib/sanitize';
+import { emailDomainAcceptsMail } from '@/lib/email';
 import {
   consumeCode,
   appendGeneration,
@@ -32,6 +33,21 @@ export async function POST(req: NextRequest) {
 
     // 1. validate + sanitize the form payload
     const v = validateRequest(raw);
+
+    // 1a. the email's domain must actually accept mail (MX records) — a fake
+    //     address must be rejected HERE, before any code is consumed or a
+    //     build (and its Actions minutes) is burned.
+    if (!(await emailDomainAcceptsMail(v.supportEmail))) {
+      const domain = v.supportEmail.split('@')[1] || '';
+      return NextResponse.json(
+        {
+          ok: false,
+          code: 'INVALID_EMAIL',
+          message: `The email's domain (${domain}) doesn't exist or doesn't accept mail — check the address and try again.`,
+        },
+        { status: 400 },
+      );
+    }
 
     // 1b. per-IP rate limit (protects Actions minutes)
     const ip = clientIp(req);

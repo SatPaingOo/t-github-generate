@@ -18,7 +18,7 @@ export interface GenerateRequest {
 
 export interface GenerateResponse {
   ok: boolean;
-  code?: 'EMAIL_LIMIT' | 'IP_LIMIT' | 'MONTHLY_QUOTA' | 'ACTIONS_BUDGET' | 'INVALID_CODE' | 'VALIDATION' | 'INTERNAL';
+  code?: 'INVALID_EMAIL' | 'EMAIL_LIMIT' | 'IP_LIMIT' | 'MONTHLY_QUOTA' | 'ACTIONS_BUDGET' | 'INVALID_CODE' | 'VALIDATION' | 'INTERNAL';
   retryAfterMin?: number;
   blockedPlatform?: string;
   queuePosition?: number;

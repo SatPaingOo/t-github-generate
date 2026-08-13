@@ -177,7 +177,11 @@ jobs:
             git push
           fi
 
+      # continue-on-error: an undeliverable address must not fail the job —
+      # the next step (status → done) still runs, so the CSV never keeps a
+      # stuck "building" row that would inflate the queue position.
       - name: Email user (build complete)
+        continue-on-error: true
         shell: bash
         env:
           SLUG: ${{ github.event.inputs.slug }}

@@ -62,6 +62,18 @@ function ErrorBanner({ data, onSwitchPlatform }: { data: GenerateResponse; onSwi
     );
   }
 
+  if (data.code === 'INVALID_EMAIL') {
+    return (
+      <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <span>📧</span>
+        <div>
+          <p className="font-semibold">This email can't receive mail</p>
+          <p className="mt-0.5">{data.message} We need a working address to send your download link.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (data.code === 'INVALID_CODE') {
     return (
       <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
