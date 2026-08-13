@@ -48,15 +48,29 @@ export async function writeRepoFile(
   message: string,
 ): Promise<void> {
   const gh = getOctokit();
-  const existing = await readRepoFile(path);
-  await gh.repos.createOrUpdateFileContents({
-    owner: GITHUB_OWNER,
-    repo: WEBSITE_REPO,
-    path,
-    message,
-    content: Buffer.from(content, 'utf8').toString('base64'),
-    sha: existing?.sha,
-  });
+  // Contents API writes need the file's current sha — concurrent writers
+  // (parallel generations updating otps/limits) can move the file between our
+  // read and write, returning 409. Re-read and retry a few times instead of
+  // failing the whole request.
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const existing = await readRepoFile(path);
+      await gh.repos.createOrUpdateFileContents({
+        owner: GITHUB_OWNER,
+        repo: WEBSITE_REPO,
+        path,
+        message,
+        content: Buffer.from(content, 'utf8').toString('base64'),
+        sha: existing?.sha,
+      });
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isConflict = /409|is not up to date|does not match/i.test(msg);
+      if (!isConflict || attempt === 4) throw err;
+      await new Promise(r => setTimeout(r, 600 * attempt));
+    }
+  }
 }
 
 export function exportDirUrl(platform: string, slug: string): string {
@@ -108,9 +122,6 @@ export async function uploadExportLogo(slug: string, logoBytes: Buffer): Promise
   const gh = getOctokit();
   const { owner, repo } = { owner: GITHUB_OWNER, repo: WEBSITE_REPO };
 
-  const ref = await gh.git.getRef({ owner, repo, ref: 'heads/main' });
-  const baseCommit = ref.data.object.sha;
-
   const blob = await gh.git.createBlob({
     owner,
     repo,
@@ -118,22 +129,39 @@ export async function uploadExportLogo(slug: string, logoBytes: Buffer): Promise
     encoding: 'base64',
   });
 
-  const tree = await gh.git.createTree({
-    owner,
-    repo,
-    base_tree: baseCommit,
-    tree: [{ path: `public/inputs/${slug}/logo.png`, mode: '100644', type: 'blob', sha: blob.data.sha }],
-  });
+  // The tree-based commit races with other writers: the export workflow
+  // (artifact + status commits) and concurrent generations. If main moves
+  // between our getRef and updateRef, GitHub rejects with "Update is not a
+  // fast forward" — retry from the latest head instead of failing the build.
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const ref = await gh.git.getRef({ owner, repo, ref: 'heads/main' });
+      const baseCommit = ref.data.object.sha;
 
-  const commit = await gh.git.createCommit({
-    owner,
-    repo,
-    message: 'chore: stage logo for export [skip ci]',
-    tree: tree.data.sha,
-    parents: [baseCommit],
-  });
+      const tree = await gh.git.createTree({
+        owner,
+        repo,
+        base_tree: baseCommit,
+        tree: [{ path: `public/inputs/${slug}/logo.png`, mode: '100644', type: 'blob', sha: blob.data.sha }],
+      });
 
-  await gh.git.updateRef({ owner, repo, ref: 'heads/main', sha: commit.data.sha });
+      const commit = await gh.git.createCommit({
+        owner,
+        repo,
+        message: 'chore: stage logo for export [skip ci]',
+        tree: tree.data.sha,
+        parents: [baseCommit],
+      });
+
+      await gh.git.updateRef({ owner, repo, ref: 'heads/main', sha: commit.data.sha });
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRace = /not a fast[- ]forward|409/i.test(msg);
+      if (!isRace || attempt === 4) throw err;
+      await new Promise(r => setTimeout(r, 800 * attempt)); // backoff then re-read head
+    }
+  }
 }
 
 /**
