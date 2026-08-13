@@ -1,0 +1,10 @@
+{
+  "aca07abd2977c879c5dcacc58aaebf28cb24000a2aaa688e852de1e6e8e0fa0d": {
+    "otpHash": "e6db3eaefc6c22413aa9a6b279d4dda100a770b193221643d6316e088f004eb4",
+    "expiresAt": 1786634054942,
+    "attempts": 0,
+    "lastSentAt": 1786633454942,
+    "sendCount": 1,
+    "firstSendAt": 1786633454942
+  }
+}
