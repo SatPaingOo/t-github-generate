@@ -1,0 +1,11 @@
+{
+  "appName": "TGen10",
+  "slug": "tgen10",
+  "platform": "windows",
+  "theme": "light",
+  "primaryColor": "#8b5cf6",
+  "secondaryColor": "#64748b",
+  "version": "1.0.0",
+  "file": "tgen10-Setup-v1.0.0.exe",
+  "builtAt": "2026-08-13T12:56:04Z"
+}
