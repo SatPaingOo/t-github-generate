@@ -391,7 +391,7 @@ export function GenerateScreen() {
                   title={`Build budget ${budget.month} — used ${budget.builds.used} of ${budget.builds.max} builds`}
                 >
                   {budget.available
-                    ? `${budget.builds.remaining} builds left${budget.minutes ? ` · ${budget.minutes.remaining} min budget` : ''}`
+                    ? `${budget.builds.remaining} builds left (used ${budget.builds.used}/${budget.builds.max}${budget.minutes ? ` · ${budget.minutes.remaining} min budget` : ''})`
                     : budget.reason === 'ACTIONS_BUDGET'
                       ? 'Builds paused (Actions minutes low)'
                       : 'Monthly budget used'}
@@ -653,9 +653,12 @@ export function GenerateScreen() {
                 )}
               </Button>
               <p className="text-center text-xs text-slate-400">
-                Free demo — verify your email, then we build on GitHub Actions. Limited build
-                budget each month (used {budget?.builds.used ?? '—'}/{budget?.builds.max ?? 120}
-                {budget?.minutes ? ` · ${budget.minutes.remaining} min left` : ''}).
+                Free demo — verify your email, then we build on GitHub Actions.{' '}
+                {budget ? (
+                  budget.available
+                    ? `${budget.builds.remaining} builds left (used ${budget.builds.used}/${budget.builds.max}${budget.minutes ? ` · ${budget.minutes.remaining} min budget` : ''}).`
+                    : 'Monthly build budget is used up — new builds resume next month.'
+                ) : null}
               </p>
             </form>
           </Card>
