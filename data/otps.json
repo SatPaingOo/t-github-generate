@@ -7,14 +7,6 @@
     "sendCount": 1,
     "firstSendAt": 1786633454942
   },
-  "54dbed1459adf382dfa4d9a05e0b0e7909292eb4dbdf55f7b7cf655df556fa50": {
-    "otpHash": "b2ddc7fa1124bd825ece40261b29d269208647d793861339344a21fbda8865f9",
-    "expiresAt": 1786635536190,
-    "attempts": 0,
-    "lastSentAt": 1786634936190,
-    "sendCount": 2,
-    "firstSendAt": 1786633953480
-  },
   "735ea7b131cc4d0fca496f8b547e06e9079c88ecf9c0a673137f8921679fd017": {
     "otpHash": "b9ffe08d66c2204cc4004b8ad7e64e070a1def42c3955449e90d702050805601",
     "expiresAt": 1786635463942,
