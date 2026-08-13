@@ -56,8 +56,13 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       await discardOtp(clean).catch(() => {});
       console.error('otp send failed:', err);
+      const detail = err instanceof Error ? err.message : String(err);
       return NextResponse.json(
-        { ok: false, code: 'INTERNAL', message: 'Could not send the code — please try again in a moment.' },
+        {
+          ok: false,
+          code: 'INTERNAL',
+          message: `Could not send the code (${detail}). Check that the SMTP settings on the server are correct, then try again.`,
+        },
         { status: 500 },
       );
     }

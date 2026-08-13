@@ -35,6 +35,8 @@ export async function sendEmail(opts: {
   const port = Number(process.env.SMTP_PORT) || 465;
   const secure = port === 465;
 
+  console.log('[email] sending via', host, '->', smtpIpv4, 'port', port, 'to', opts.to);
+
   const transport = nodemailer.createTransport({
     host: smtpIpv4,
     port,
@@ -47,18 +49,25 @@ export async function sendEmail(opts: {
   try {
     await transport.sendMail({ from, to: opts.to, subject: opts.subject, html: opts.html });
   } catch (err) {
+    const firstErr = err instanceof Error ? err.message : String(err);
     // fallback: try the alternate port (465 ⇄ 587)
     if (secure) {
-      const fallback = nodemailer.createTransport({
-        host: smtpIpv4,
-        port: 587,
-        secure: false,
-        tls: { servername: host },
-        connectionTimeout: 15000,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-      await fallback.sendMail({ from, to: opts.to, subject: opts.subject, html: opts.html });
-      return;
+      try {
+        const fallback = nodemailer.createTransport({
+          host: smtpIpv4,
+          port: 587,
+          secure: false,
+          tls: { servername: host },
+          connectionTimeout: 15000,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        });
+        await fallback.sendMail({ from, to: opts.to, subject: opts.subject, html: opts.html });
+        return;
+      } catch (fallbackErr) {
+        throw new Error(
+          `port 465: ${firstErr} · port 587: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`,
+        );
+      }
     }
     throw err;
   }
